@@ -3,6 +3,7 @@ import DashboardPage from "./pages/DashboardPage";
 import JobsPage from "./pages/JobsPage";
 import ApplicationsPage from "./pages/ApplicationsPage";
 import NetworkPage from "./pages/NetworkPage";
+import ResumesPage from "./pages/ResumesPage";
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
           <Link to="/">Dashboard</Link>
           <Link to="/jobs">Jobs</Link>
           <Link to="/applications">Applications</Link>
+          <Link to="/resumes">Resumes</Link>
           <Link to="/network">Network</Link>
         </nav>
       </aside>
@@ -21,6 +23,7 @@ export default function App() {
           <Route path="/" element={<DashboardPage />} />
           <Route path="/jobs" element={<JobsPage />} />
           <Route path="/applications" element={<ApplicationsPage />} />
+          <Route path="/resumes" element={<ResumesPage />} />
           <Route path="/network" element={<NetworkPage />} />
         </Routes>
       </main>

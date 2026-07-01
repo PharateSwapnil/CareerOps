@@ -15,6 +15,7 @@ export default function JobsPage() {
   const [loading, setLoading] = useState(false);
   const [provider, setProvider] = useState("stub");
   const [providers, setProviders] = useState<string[]>(["stub"]);
+  const [addedJobIds, setAddedJobIds] = useState<Set<number>>(new Set());
 
   const loadJobs = async () => {
     const res = await fetch("/api/v1/jobs");
@@ -44,6 +45,17 @@ export default function JobsPage() {
     loadJobs();
     loadProviders();
   }, []);
+
+  const addToPipeline = async (jobId: number) => {
+    const res = await fetch("/api/v1/applications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ job_id: jobId }),
+    });
+    if (res.ok) {
+      setAddedJobIds((prev) => new Set(prev).add(jobId));
+    }
+  };
 
   return (
     <div>
@@ -77,6 +89,13 @@ export default function JobsPage() {
             {job.remote ? "(Remote)" : ""}
           </div>
           <div>source: {job.source_provider}</div>
+          <button
+            style={{ marginTop: 8, fontSize: 12 }}
+            disabled={addedJobIds.has(job.id)}
+            onClick={() => addToPipeline(job.id)}
+          >
+            {addedJobIds.has(job.id) ? "Added to pipeline" : "Add to pipeline"}
+          </button>
         </div>
       ))}
     </div>

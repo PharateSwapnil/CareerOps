@@ -9,10 +9,12 @@ export default function ApplicationsPage() {
   const [result, setResult] = useState("");
   const [provider, setProvider] = useState("");
   const [loading, setLoading] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const runAssist = async () => {
     setLoading(true);
     setResult("");
+    setSaved(false);
     try {
       const endpoint =
         mode === "resume-optimize"
@@ -37,6 +39,18 @@ export default function ApplicationsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const saveAsResume = async () => {
+    const res = await fetch("/api/v1/resumes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        label: `AI-optimized (${new Date().toLocaleDateString()})`,
+        content: result,
+      }),
+    });
+    if (res.ok) setSaved(true);
   };
 
   return (
@@ -78,6 +92,11 @@ export default function ApplicationsPage() {
               via {provider}
             </div>
             <pre style={{ whiteSpace: "pre-wrap" }}>{result}</pre>
+            {mode === "resume-optimize" && (
+              <button style={{ marginTop: 8, fontSize: 12 }} onClick={saveAsResume}>
+                {saved ? "Saved to Resumes" : "Save as resume"}
+              </button>
+            )}
           </div>
         )}
       </div>

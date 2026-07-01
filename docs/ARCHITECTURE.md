@@ -147,6 +147,13 @@ Built:
   and degrades to a stub provider if nothing is configured
 - `/ai/resume-optimize` and `/ai/cover-letter` endpoints with dedicated
   prompt-construction logic (`services/ai_prompts.py`)
+- Application CRUD with an explicit status state machine
+  (`services/application_state_machine.py`) enforced server-side
+- Resume version-chain management (`services/resume_versioning.py`):
+  immutable versions, chain history lookup, unified diff between versions,
+  and rollback-by-creating-a-new-head-version
+- A single-local-user shim (`services/default_user.py`) that Applications
+  and Resumes attach to until real auth exists
 
 Not yet built:
 - Additional job-provider integrations (Lever, Ashby, RSS, career-page scraping)

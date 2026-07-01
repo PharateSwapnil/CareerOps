@@ -149,10 +149,55 @@ Notes:
   fallback/timeout/all-fail cases, endpoint-level fallback-to-stub), 31/31
   total passing.
 
-## Milestone 4 — Application management
-- [ ] Application CRUD + status state machine
-- [ ] Dashboard UI (pipeline view)
-- [ ] Resume version history + rollback/diff UI
+## Milestone 4 — Application management ✅
+- [x] Application CRUD + status state machine
+- [x] Dashboard UI (pipeline view)
+- [x] Resume version history + rollback/diff UI
+
+Notes:
+- State machine lives in `services/application_state_machine.py` as an
+  explicit `ALLOWED_TRANSITIONS` map (SAVED → APPLIED → PHONE_SCREEN →
+  INTERVIEWING → OFFER, with REJECTED/WITHDRAWN reachable from any active
+  stage and terminal once reached). `PATCH /applications/{id}/status`
+  enforces it server-side (409 on an illegal transition); the dashboard UI
+  only ever offers legal next-steps as buttons, but the backend is the
+  source of truth either way.
+- No real auth yet (still out of scope per `ARCHITECTURE.md`), so
+  `services/default_user.py` get-or-creates a single local user record that
+  Applications/Resumes attach to. This is explicitly flagged as a temporary
+  shim to replace once auth exists, not a design decision to build on.
+- Resume versioning (`services/resume_versioning.py`) keeps every version
+  row immutable; edits and rollbacks both create a *new* row extending the
+  chain (rollback = "create a new head version with old content", it never
+  rewrites history). Chain membership is discovered by walking
+  `parent_version_id` pointers rather than assuming a fixed shape, so it
+  stays correct after a rollback creates a new branch tip. Diffing uses
+  Python's stdlib `difflib.unified_diff`.
+- `GET /resumes` returns only the latest version per chain (so the list
+  view isn't cluttered with every historical draft); `GET
+  /resumes/{id}/history` returns the full chain for a given resume.
+- Found and fixed a latent bug while adding these tests: the stub job
+  provider hardcoded `raw_source_id="stub-1"` regardless of search keyword,
+  so two different test-time searches would collide via the
+  source_provider+raw_source_id dedupe key and silently return stale data.
+  Fixed to vary the id by keyword.
+- Frontend: Dashboard is now a real (if plainly styled) kanban-style
+  pipeline view reading live application/job data, with per-card
+  "move to next stage" / "reject" buttons wired to the state-machine
+  endpoint. Jobs page got an "Add to pipeline" button. Resumes page
+  supports creating resumes, viewing version history, diffing adjacent
+  versions, adding new versions, and rolling back. The AI Assist panel
+  (Milestone 3) can now save its resume-optimize output directly as a new
+  Resume.
+- Tests: 24 new tests (state machine transition rules, resume versioning
+  service logic, full API flows for both Applications and Resumes),
+  51/51 total passing.
+
+Known gap carried forward: tests share a persistent SQLite file
+(`backend/data/careerops.db`) rather than an isolated per-run database, so
+cross-test-file pollution is possible (as the stub-provider bug above
+demonstrated). Worth introducing a proper test-fixture override of
+`DATABASE_URL` to an in-memory or temp-file DB in a future cleanup pass.
 
 ## Milestone 5 — Semantic job search
 - [ ] Embedding generation for jobs + saved searches
