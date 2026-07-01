@@ -29,6 +29,53 @@ Notes:
   live network calls to `boards-api.greenhouse.io` were not reachable from the
   dev sandbox's network allowlist, so a live smoke test should be run in a
   normal environment before relying on it in production.
+- Also added **Arbeitnow** and **Remotive** as real providers (both public JSON
+  APIs, no key needed) — see `tests/test_public_api_providers.py`.
+
+### Job source backlog (requested, not all built yet)
+
+Sources are grouped by integration difficulty/risk, not by requested order.
+Each ✅ below is implemented; everything else is a future PR against the
+`JobProvider` interface in `providers/job_providers/base.py`.
+
+**Public APIs / RSS — straightforward `JobProvider` plugins, do these first**
+- [x] Greenhouse
+- [x] Arbeitnow
+- [x] Remotive
+- [ ] RemoteOK (`remoteok.com/api`)
+- [ ] Lever (`api.lever.co/v0/postings/{company}`)
+- [ ] Ashby (`api.ashbyhq.com/posting-api/job-board/{org}`)
+- [ ] Workable
+- [ ] Recruitee
+- [ ] Personio
+- [ ] We Work Remotely (RSS feed, needs an XML/RSS parser)
+- [ ] Jobicy
+- [ ] Himalayas
+- [ ] USAJobs.gov (requires a free API key — still no login/scraping)
+- [ ] Adzuna (requires a free API key)
+- [ ] Jooble (requires a free API key)
+- [ ] Reed.co.uk (requires a free API key)
+- [ ] Careerjet (requires a free API key)
+
+**HTML scraping — feasible but higher maintenance; do selectively, respect
+robots.txt, and expect breakage when a site redesigns**
+Wellfound, Remote.co, WorkingNomads, Jobspresso, JustRemote, Pangian,
+DynamiteJobs, CitizenRemote, InclusivelyRemote, RemoteNomadJobs,
+OpenToWorkRemote, RemoteHealthcareJobs, Jobgether, NoDesk, Workster, Workew,
+Remoters, SkipTheDrive, EURemoteJobs, PowerToFly.
+Recommend picking 2–3 based on what's actually relevant to the user's job
+search rather than building all 20 scrapers up front.
+
+**Login-gated (LinkedIn, Naukri, Indeed, FlexJobs, VirtualVocations) — NOT
+planned as autonomous scraping**
+These platforms' Terms of Service generally prohibit automated login and
+scraping; doing so risks account suspension/ban and is inconsistent with this
+project's "assist, don't bypass protections" principle (see
+`ARCHITECTURE.md` §1.4). If/when this is built, it belongs under **Milestone
+8 (Browser-Assisted Applications)** as user-present, human-in-the-loop
+browser automation — the user stays logged in and present in their own
+browser session; CareerOps++ assists rather than operates unattended with
+stored credentials.
 
 ## Milestone 3 — LLM provider orchestration
 - [ ] Implement `LLMProvider` for Claude (Anthropic API)
