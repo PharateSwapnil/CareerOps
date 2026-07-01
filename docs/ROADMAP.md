@@ -251,10 +251,40 @@ Notes:
   flows for semantic search + similar jobs + saved searches), 66/66 total
   passing. Frontend typechecks clean.
 
-## Milestone 6 — Networking CRM
-- [ ] Contact + Interaction CRUD
-- [ ] Follow-up reminders
-- [ ] AI-generated networking message drafts
+## Milestone 6 — Networking CRM ✅
+- [x] Contact + Interaction CRUD
+- [x] Follow-up reminders
+- [x] AI-generated networking message drafts
+
+Notes:
+- Contact and Interaction models already existed from Milestone 1's
+  scaffold; this milestone added the CRUD routes, follow-ups query, and AI
+  drafting on top of them.
+- `GET /contacts/follow-ups?days_ahead=N` returns contacts with a
+  `next_follow_up_at` at or before `now + N days`, overdue-first then
+  soonest-upcoming (a single sort, since overdue timestamps sort earliest
+  naturally). Contacts with no follow-up set are excluded, not treated as
+  "always due."
+- Interactions are nested under their contact
+  (`/contacts/{id}/interactions`) rather than being a top-level resource,
+  since they only ever make sense in that context - matches the "logged
+  touch-point with a Contact" framing from the original data model.
+- `POST /ai/networking-message` follows the same pattern as
+  resume-optimize/cover-letter from Milestone 3 (LLM orchestrator +
+  dedicated prompt builder in `services/ai_prompts.py`), parameterized by
+  contact name/relationship, purpose, optional context, tone, and channel
+  (LinkedIn vs. email length/formality). The system prompt explicitly frames
+  drafts as a starting point for the user to edit, not a final message -
+  keeping the user in control per the original project spec's "AI should
+  generate personalized networking messages while keeping the user in
+  control" requirement.
+- Frontend: Network page has an add-contact form, a follow-ups-due view
+  (default) vs. all-contacts view, a per-contact detail panel for setting
+  the next follow-up date, logging interactions, viewing interaction
+  history, and generating an AI message draft inline.
+- Tests: 8 new tests (contact/interaction CRUD, missing-contact 404s,
+  follow-up windowing and sort order, networking-message endpoint),
+  74/74 total passing. Frontend typechecks clean.
 
 ## Milestone 7 — Company intelligence
 - [ ] Public data aggregation for companies

@@ -161,6 +161,10 @@ Built:
   similarity search (`services/embeddings.py`), auto-embedding on job
   ingestion, "similar roles" lookup, and saved searches with persisted
   query embeddings for repeat matching
+- Networking CRM: Contact + Interaction CRUD, a follow-ups-due query, and
+  `POST /ai/networking-message` (same LLM-orchestrator + prompt-builder
+  pattern as resume-optimize/cover-letter) for drafting outreach messages
+  the user reviews and edits before sending
 
 Not yet built:
 - Additional job-provider integrations (Lever, Ashby, RSS, career-page scraping)

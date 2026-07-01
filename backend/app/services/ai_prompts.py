@@ -3,7 +3,13 @@
 so prompt engineering can be iterated on without touching API wiring, and so
 it's testable without spinning up FastAPI.
 """
-from app.schemas.llm import CoverLetterRequest, LLMMessage, LLMRequest, ResumeOptimizeRequest
+from app.schemas.llm import (
+    CoverLetterRequest,
+    LLMMessage,
+    LLMRequest,
+    NetworkingMessageRequest,
+    ResumeOptimizeRequest,
+)
 
 RESUME_OPTIMIZE_SYSTEM_PROMPT = (
     "You are an expert resume writer and ATS (Applicant Tracking System) "
@@ -23,6 +29,20 @@ COVER_LETTER_SYSTEM_PROMPT = (
     "genuine experience to the role's requirements. Avoid generic "
     "filler phrases and do not fabricate experience. Match the requested "
     "tone."
+)
+
+
+NETWORKING_MESSAGE_SYSTEM_PROMPT = (
+    "You are an expert at professional networking outreach. Given "
+    "information about a contact, the purpose of reaching out, and "
+    "optional context, draft a concise, genuine-sounding message - never "
+    "generic or template-feeling. Avoid corporate jargon and overly "
+    "salesy language. Keep the length and formality appropriate to the "
+    "specified channel (LinkedIn messages should be short; emails can be "
+    "slightly longer). The message should keep the recipient in control - "
+    "it's a starting point for them to edit, not a final message to send "
+    "verbatim without review. Output only the message text, no preamble "
+    "or explanation."
 )
 
 
@@ -56,4 +76,23 @@ def build_cover_letter_request(payload: CoverLetterRequest) -> LLMRequest:
         ],
         max_tokens=1024,
         temperature=0.6,
+    )
+
+
+def build_networking_message_request(payload: NetworkingMessageRequest) -> LLMRequest:
+    context_line = f"Context: {payload.context}\n" if payload.context else ""
+    user_content = (
+        f"Contact: {payload.contact_name} ({payload.contact_relationship})\n"
+        f"Channel: {payload.channel}\n"
+        f"Tone: {payload.tone}\n"
+        f"Purpose: {payload.purpose}\n"
+        f"{context_line}"
+    )
+    return LLMRequest(
+        messages=[
+            LLMMessage(role="system", content=NETWORKING_MESSAGE_SYSTEM_PROMPT),
+            LLMMessage(role="user", content=user_content),
+        ],
+        max_tokens=512,
+        temperature=0.7,
     )
