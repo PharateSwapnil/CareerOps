@@ -31,6 +31,14 @@ class Settings(BaseSettings):
     adzuna_app_id: str | None = None
     adzuna_app_key: str | None = None
 
+    # Embedding provider for semantic search (Milestone 5). "hashing" is a
+    # zero-dependency, zero-API-key local fallback (lexical/n-gram overlap,
+    # not true neural semantics) that's used by default so search works out
+    # of the box. Set to "voyage" + configure VOYAGE_API_KEY for real neural
+    # embeddings with cross-terminology semantic matching.
+    embedding_default_provider: str = "hashing"
+    voyage_api_key: str | None = None
+
     cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
 
     # Order in which the LLM fallback orchestrator (Milestone 3) tries

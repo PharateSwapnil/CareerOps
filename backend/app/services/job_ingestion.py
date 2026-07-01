@@ -8,10 +8,13 @@ import logging
 
 from sqlmodel import Session, select
 
+from app.core.config import get_settings
 from app.db.session import engine
 from app.models.job import Job
+from app.providers.embedding_providers.registry import get_provider as get_embedding_provider
 from app.providers.job_providers.base import JobProvider
 from app.schemas.job import JobSearchQuery
+from app.services.embeddings import embed_and_store_job
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +44,18 @@ async def ingest_jobs(
         session.commit()
         session.refresh(job)
         saved.append(job)
+
+        # Auto-embed newly created jobs so semantic search works
+        # immediately without a separate manual step. Uses the default
+        # (free, local, zero-latency) embedding provider - a failure here
+        # (e.g. a misbehaving provider) shouldn't break job ingestion, so
+        # it's logged and swallowed rather than propagated.
+        try:
+            settings = get_settings()
+            embedding_provider = get_embedding_provider(settings.embedding_default_provider)
+            await embed_and_store_job(session, job, embedding_provider)
+        except Exception:
+            logger.exception("Auto-embedding failed for job %s, continuing", job.id)
 
     return saved
 

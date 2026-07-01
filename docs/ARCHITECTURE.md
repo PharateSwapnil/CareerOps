@@ -61,6 +61,8 @@ Entities live in `backend/app/models/`. All use SQLModel (SQLAlchemy + Pydantic)
 | `Application` | Links `User` + `Job` + `Resume` version + lifecycle status/history  |
 | `Contact`     | Networking CRM entry (recruiter, hiring manager, referral, etc.)    |
 | `Interaction` | A logged touch-point with a `Contact` (message, call, follow-up)    |
+| `JobEmbedding`| One embedding vector per (Job, provider) - see Milestone 5           |
+| `SavedSearch` | A persisted semantic query + its own embedding, for repeat matching |
 
 Design notes:
 - `Job.raw_source_id` + `Job.source_provider` together are unique — this is how we
@@ -154,6 +156,11 @@ Built:
   and rollback-by-creating-a-new-head-version
 - A single-local-user shim (`services/default_user.py`) that Applications
   and Resumes attach to until real auth exists
+- Semantic job search: pluggable embedding providers (local hashing-trick
+  default + optional Voyage AI neural embeddings), in-process cosine
+  similarity search (`services/embeddings.py`), auto-embedding on job
+  ingestion, "similar roles" lookup, and saved searches with persisted
+  query embeddings for repeat matching
 
 Not yet built:
 - Additional job-provider integrations (Lever, Ashby, RSS, career-page scraping)

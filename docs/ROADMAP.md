@@ -199,10 +199,57 @@ cross-test-file pollution is possible (as the stub-provider bug above
 demonstrated). Worth introducing a proper test-fixture override of
 `DATABASE_URL` to an in-memory or temp-file DB in a future cleanup pass.
 
-## Milestone 5 — Semantic job search
-- [ ] Embedding generation for jobs + saved searches
-- [ ] Vector similarity search (start with sqlite-vss or a simple in-process index)
-- [ ] "similar roles" UI
+## Milestone 5 — Semantic job search ✅
+- [x] Embedding generation for jobs + saved searches
+- [x] Vector similarity search (in-process cosine similarity, per the
+      roadmap's own "start simple" guidance - see notes)
+- [x] "similar roles" UI
+
+Notes:
+- Two embedding providers, same plugin pattern as job/LLM providers
+  (`providers/embedding_providers/`):
+  - **`hashing`** (default, zero setup): a local feature-hashing /
+    "hashing trick" bag-of-words vectorizer, no API key, no network call,
+    fully deterministic. Captures lexical/n-gram overlap, not true neural
+    semantics - it won't reliably connect e.g. a "Snowflake, Databricks,
+    PySpark" query to an "Analytics Engineer" posting unless that
+    vocabulary literally co-occurs somewhere in the text. This is called
+    out explicitly in the provider's own docstring rather than oversold as
+    full semantic search.
+  - **`voyage`** (opt-in via `VOYAGE_API_KEY`): real neural embeddings via
+    Voyage AI's API (`voyage-4-lite` by default), capable of the
+    cross-terminology matching the original project spec describes. Built
+    against Voyage's documented request/response shape (confirmed via their
+    docs), but **not live-verified** - `api.voyageai.com` isn't in this dev
+    sandbox's network egress allowlist, so unlike the Claude/Groq providers
+    in Milestone 3 I couldn't confirm reachability with even an auth-error
+    response. Worth a real smoke test with a configured key before relying
+    on it.
+- Storage: `JobEmbedding` (one row per job+provider, upserted on re-embed)
+  and embedding fields directly on `SavedSearch` (a saved search only needs
+  one embedding of its own query text). Vectors are stored as JSON-encoded
+  float lists - simple, and fine at this scale.
+- Search: deliberately NOT using sqlite-vss or a vector DB.
+  `services/embeddings.py` loads all stored vectors for a provider into
+  memory and does a linear cosine-similarity scan. At personal-job-search
+  scale (hundreds to low thousands of postings) this is fast and avoids the
+  real fragility of loadable SQLite extensions across platforms/Python
+  builds. If the corpus ever grows enough for this to matter, swapping in a
+  real vector index only touches this one module.
+- Jobs are auto-embedded (with the default provider) right after ingestion
+  in `services/job_ingestion.py`, so semantic search works immediately with
+  no separate manual step. A failure to embed doesn't fail the ingestion
+  itself - logged and swallowed.
+- New endpoints: `POST /jobs/semantic-search`, `GET /jobs/{id}/similar`,
+  and full Saved Search CRUD (`POST/GET/DELETE /saved-searches`,
+  `GET /saved-searches/{id}/matches`).
+- Frontend: Jobs page has a semantic search box and a "Similar roles"
+  button per listing; new Saved Searches page for creating/viewing/deleting
+  saved semantic searches and their current matches.
+- Tests: 15 new tests (hashing provider determinism/normalization/ranking
+  behavior, embeddings service upsert/search/similarity logic, full API
+  flows for semantic search + similar jobs + saved searches), 66/66 total
+  passing. Frontend typechecks clean.
 
 ## Milestone 6 — Networking CRM
 - [ ] Contact + Interaction CRUD
