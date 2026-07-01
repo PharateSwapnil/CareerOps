@@ -1,0 +1,64 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #0b0d12;
+  color: #e6e8eb;
+}
+
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 220px;
+  padding: 24px 16px;
+  border-right: 1px solid #1f232b;
+}
+
+.sidebar h1 {
+  font-size: 16px;
+  margin-bottom: 24px;
+}
+
+.sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar a {
+  color: #a9b0bb;
+  text-decoration: none;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.sidebar a:hover {
+  background: #171a20;
+  color: #fff;
+}
+
+.main-content {
+  flex: 1;
+  padding: 32px;
+  max-width: 900px;
+}
+
+.card {
+  background: #12151b;
+  border: 1px solid #1f232b;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
