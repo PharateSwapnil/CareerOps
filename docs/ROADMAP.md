@@ -71,12 +71,39 @@ endpoint via `board_tokens`, client-side filtering.
 
 **HTML scraping — feasible but higher maintenance; do selectively, respect
 robots.txt, and expect breakage when a site redesigns**
-Wellfound, Remote.co, WorkingNomads, Jobspresso, JustRemote, Pangian,
-DynamiteJobs, CitizenRemote, InclusivelyRemote, RemoteNomadJobs,
-OpenToWorkRemote, RemoteHealthcareJobs, Jobgether, NoDesk, Workster, Workew,
-Remoters, SkipTheDrive, EURemoteJobs, PowerToFly.
-Recommend picking 2–3 based on what's actually relevant to the user's job
-search rather than building all 20 scrapers up front.
+
+Of the three requested (Wellfound, Remote.co, NoDesk):
+- [x] **Remote.co** — server-rendered, no anti-bot wall, no login wall.
+  Scraper anchors on the stable `/job-details/{slug}` URL pattern rather
+  than CSS classes, so it's more resilient to styling changes. Written
+  against markdown-rendered page content (couldn't reach remote.co directly
+  from this dev sandbox's network allowlist to grab raw HTML), so treat the
+  DOM-traversal assumptions as needing a live smoke test before trusting
+  them in production — see the caveat docstring in
+  `providers/job_providers/remoteco_provider.py`.
+- [ ] **Wellfound** — deliberately NOT built. It's protected by active
+  anti-bot measures (DataDome); third-party scrapers report needing
+  residential proxies or stolen session cookies to get even partial
+  success. Building a scraper aimed at defeating that protection isn't
+  something this project does, regardless of framing — see
+  `ARCHITECTURE.md` §1.4 ("assist, don't bypass protections"). If Wellfound
+  access matters, the honest path is Milestone 8's user-present browser
+  assistance (you're logged in, present, and clicking — the app doesn't
+  operate unattended around anti-bot walls).
+- [ ] **NoDesk** — deliberately NOT built with a plain scraper. Its job
+  listings render client-side via JavaScript after page load; a plain HTTP
+  GET returns a shell page with no jobs in it. This needs headless-browser
+  infrastructure (Playwright), which is genuinely a Milestone 8 concern
+  (browser automation), not a fit for the lightweight `httpx` + BeautifulSoup
+  pattern used elsewhere in this tier.
+
+Remaining requested sources (not yet attempted): WorkingNomads, Jobspresso,
+JustRemote, Pangian, DynamiteJobs, CitizenRemote, InclusivelyRemote,
+RemoteNomadJobs, OpenToWorkRemote, RemoteHealthcareJobs, Jobgether, Workster,
+Workew, Remoters, SkipTheDrive, EURemoteJobs, PowerToFly. Recommend
+evaluating each the same way as above (server-rendered + no anti-bot vs.
+JS-rendered vs. anti-bot-protected) before building, rather than assuming
+they're all straightforward.
 
 **Login-gated (LinkedIn, Naukri, Indeed, FlexJobs, VirtualVocations) — NOT
 planned as autonomous scraping**

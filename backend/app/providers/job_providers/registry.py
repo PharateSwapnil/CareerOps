@@ -9,6 +9,7 @@ from app.providers.job_providers.base import JobProvider
 from app.providers.job_providers.greenhouse_provider import GreenhouseJobProvider
 from app.providers.job_providers.jobicy_provider import JobicyJobProvider
 from app.providers.job_providers.lever_provider import LeverJobProvider
+from app.providers.job_providers.remoteco_provider import RemoteCoJobProvider
 from app.providers.job_providers.remoteok_provider import RemoteOKJobProvider
 from app.providers.job_providers.remotive_provider import RemotiveJobProvider
 from app.providers.job_providers.stub_provider import StubJobProvider
@@ -25,6 +26,7 @@ _REGISTRY: dict[str, JobProvider] = {
     "jobicy": JobicyJobProvider(),
     "weworkremotely": WeWorkRemotelyJobProvider(),
     "adzuna": AdzunaJobProvider(),
+    "remoteco": RemoteCoJobProvider(),
 }
 
 
