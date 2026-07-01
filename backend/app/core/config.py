@@ -25,6 +25,12 @@ class Settings(BaseSettings):
     openrouter_api_key: str | None = None
     gemini_api_key: str | None = None
 
+    # Job provider API keys for sources that require registration (all
+    # optional; a provider without its key configured returns no results
+    # rather than erroring, so it's safe to leave these blank).
+    adzuna_app_id: str | None = None
+    adzuna_app_key: str | None = None
+
     cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
 
 

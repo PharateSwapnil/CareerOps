@@ -42,20 +42,32 @@ Each ✅ below is implemented; everything else is a future PR against the
 - [x] Greenhouse
 - [x] Arbeitnow
 - [x] Remotive
-- [ ] RemoteOK (`remoteok.com/api`)
-- [ ] Lever (`api.lever.co/v0/postings/{company}`)
-- [ ] Ashby (`api.ashbyhq.com/posting-api/job-board/{org}`)
-- [ ] Workable
-- [ ] Recruitee
-- [ ] Personio
-- [ ] We Work Remotely (RSS feed, needs an XML/RSS parser)
-- [ ] Jobicy
-- [ ] Himalayas
-- [ ] USAJobs.gov (requires a free API key — still no login/scraping)
-- [ ] Adzuna (requires a free API key)
-- [ ] Jooble (requires a free API key)
-- [ ] Reed.co.uk (requires a free API key)
-- [ ] Careerjet (requires a free API key)
+- [x] RemoteOK (`remoteok.com/api`)
+- [x] Lever (`api.lever.co/v0/postings/{company}`)
+- [x] Ashby (`api.ashbyhq.com/posting-api/job-board/{org}`) — field mapping is
+      best-effort; not live-verified from this dev sandbox (network egress
+      doesn't reach `api.ashbyhq.com`), so smoke-test before relying on it
+- [x] Jobicy
+- [x] We Work Remotely (RSS feeds per category, parsed with `xml.etree`)
+- [x] Adzuna — reference implementation for the "needs a free API key" tier;
+      returns `[]` when `ADZUNA_APP_ID`/`ADZUNA_APP_KEY` aren't set rather
+      than erroring
+- [ ] Himalayas (skipped for now — lower confidence on exact field names
+      without a live response to check against; same pattern as Jobicy once
+      verified)
+- [ ] Workable (ATS, ~same pattern as Lever)
+- [ ] Recruitee (ATS, ~same pattern as Lever)
+- [ ] Personio (ATS, publishes an XML job feed rather than JSON)
+- [ ] USAJobs.gov (needs a free API key + `Authorization-Key` header)
+- [ ] Reed.co.uk (needs a free API key, HTTP Basic auth)
+- [ ] Jooble (needs a free API key, POST-based)
+- [ ] Careerjet (needs a free affiliate key)
+
+Each remaining key-based source follows the same recipe as `AdzunaJobProvider`:
+add the key(s) to `core/config.py` + `.env.example`, return `[]` when unset,
+implement `_normalize`/`_apply_filters`. Each remaining ATS source follows
+the same recipe as `LeverJobProvider`/`GreenhouseJobProvider`: per-company
+endpoint via `board_tokens`, client-side filtering.
 
 **HTML scraping — feasible but higher maintenance; do selectively, respect
 robots.txt, and expect breakage when a site redesigns**

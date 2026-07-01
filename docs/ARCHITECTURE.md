@@ -130,7 +130,10 @@ milestone that builds real UI (see `ROADMAP.md`).
 ## 7. What's built vs. not yet (as of Milestone 2)
 
 Built:
-- One real job-provider integration: Greenhouse (`providers/job_providers/greenhouse_provider.py`)
+- Nine real job-provider integrations: Greenhouse, Arbeitnow, Remotive,
+  RemoteOK, Lever, Ashby, Jobicy, We Work Remotely (RSS), Adzuna
+  (`providers/job_providers/`) — see `docs/ROADMAP.md` for per-provider notes
+  and confidence caveats (Ashby's field mapping isn't live-verified)
 - Synchronous fetch (`POST /jobs/fetch`) and background ingestion (`POST /jobs/ingest`)
   sharing dedupe logic in `services/job_ingestion.py`
 
