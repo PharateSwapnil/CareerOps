@@ -116,11 +116,38 @@ browser automation — the user stays logged in and present in their own
 browser session; CareerOps++ assists rather than operates unattended with
 stored credentials.
 
-## Milestone 3 — LLM provider orchestration
-- [ ] Implement `LLMProvider` for Claude (Anthropic API)
-- [ ] Implement `LLMProvider` for at least one more (Groq or OpenRouter)
-- [ ] Fallback orchestrator with configurable priority + timeout/error handling
-- [ ] `/ai/resume-optimize` and `/ai/cover-letter` endpoints
+## Milestone 3 — LLM provider orchestration ✅
+- [x] Implement `LLMProvider` for Claude (Anthropic API) — `providers/llm_providers/anthropic_provider.py`
+- [x] Implement `LLMProvider` for Groq — `providers/llm_providers/groq_provider.py`
+- [x] Fallback orchestrator with configurable priority + timeout/error handling — `services/llm_orchestrator.py`
+- [x] `/ai/resume-optimize` and `/ai/cover-letter` endpoints
+
+Notes:
+- Default priority is `["claude", "groq", "stub"]` (`Settings.llm_provider_priority`).
+  The stub provider is deliberately last in the default chain so `/ai/*`
+  endpoints work end-to-end in local dev with zero API keys configured —
+  useful for onboarding contributors before they've set anything up.
+- Groq's model lineup changed recently: `llama-3.3-70b-versatile` and
+  `llama-3.1-8b-instant` were deprecated in June 2026. The Groq provider
+  uses `openai/gpt-oss-120b` instead — worth checking Groq's deprecations
+  page again if this stops working, since their model rotation is frequent.
+- Claude provider uses `claude-sonnet-5` and Anthropic's native Messages API
+  shape (`x-api-key` header, `system` as a top-level field rather than a
+  role in the messages array — pulled out of `LLMRequest.messages`
+  automatically in `AnthropicLLMProvider.complete`).
+- Both providers return `[]`/raise `LLMProviderError` (not a crash) when
+  their API key isn't configured, so the orchestrator cleanly skips them.
+- `/ai/complete` is a low-level passthrough to the orchestrator;
+  `/ai/resume-optimize` and `/ai/cover-letter` build tailored prompts on top
+  of it (`services/ai_prompts.py`) and are the intended integration points
+  for the frontend.
+- Frontend: Applications page now has a basic AI Assist panel (paste resume
+  + job description, choose resume-optimize or cover-letter, see the
+  result and which provider served it) — functional but unstyled; real UI
+  polish is Milestone 9.
+- Tests: 10 new tests (provider success/missing-key cases, orchestrator
+  fallback/timeout/all-fail cases, endpoint-level fallback-to-stub), 31/31
+  total passing.
 
 ## Milestone 4 — Application management
 - [ ] Application CRUD + status state machine

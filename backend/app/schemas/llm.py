@@ -17,3 +17,21 @@ class LLMResponse(BaseModel):
     content: str
     provider: str
     model: str | None = None
+
+
+class ResumeOptimizeRequest(BaseModel):
+    resume_text: str
+    job_description: str
+
+
+class CoverLetterRequest(BaseModel):
+    resume_text: str
+    job_description: str
+    company_name: str | None = None
+    tone: str = "professional"  # e.g. "professional", "enthusiastic", "concise"
+
+
+class AIAssistResponse(BaseModel):
+    content: str
+    provider: str
+    model: str | None = None

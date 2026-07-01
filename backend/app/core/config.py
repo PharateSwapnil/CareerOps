@@ -33,6 +33,11 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
 
+    # Order in which the LLM fallback orchestrator (Milestone 3) tries
+    # providers. "stub" is included last by default so /ai endpoints still
+    # work end-to-end in local dev without any API keys configured.
+    llm_provider_priority: list[str] = ["claude", "groq", "stub"]
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -100,8 +100,11 @@ class LLMProvider(Protocol):
         orchestrator can fall back to the next provider."""
 ```
 
-A provider-fallback orchestrator (planned, Milestone 3) will try providers in a
-configured priority order and fail over automatically on error/timeout.
+A provider-fallback orchestrator (`services/llm_orchestrator.py`, built in
+Milestone 3) tries providers in a configured priority order
+(`Settings.llm_provider_priority`, default `["claude", "groq", "stub"]`) and
+fails over automatically on error/timeout, raising `AllProvidersFailedError`
+only if every provider in the chain fails.
 
 ## 5. Backend layout
 
@@ -138,6 +141,12 @@ Built:
   sandbox's restricted network)
 - Synchronous fetch (`POST /jobs/fetch`) and background ingestion (`POST /jobs/ingest`)
   sharing dedupe logic in `services/job_ingestion.py`
+- Two real LLM-provider integrations (Claude via Anthropic's Messages API,
+  Groq via its OpenAI-compatible endpoint) behind a fallback orchestrator
+  (`services/llm_orchestrator.py`) that tries providers in priority order
+  and degrades to a stub provider if nothing is configured
+- `/ai/resume-optimize` and `/ai/cover-letter` endpoints with dedicated
+  prompt-construction logic (`services/ai_prompts.py`)
 
 Not yet built:
 - Additional job-provider integrations (Lever, Ashby, RSS, career-page scraping)
