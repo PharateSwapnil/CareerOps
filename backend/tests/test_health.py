@@ -37,3 +37,22 @@ def test_list_jobs_after_fetch(client):
     response = client.get("/api/v1/jobs")
     assert response.status_code == 200
     assert isinstance(response.json(), list)
+
+
+def test_list_providers(client):
+    response = client.get("/api/v1/jobs/providers")
+    assert response.status_code == 200
+    providers = response.json()
+    assert "stub" in providers
+    assert "greenhouse" in providers
+
+
+def test_ingest_jobs_returns_202_immediately(client):
+    response = client.post(
+        "/api/v1/jobs/ingest?provider_name=stub",
+        json={"keywords": ["Engineer"]},
+    )
+    assert response.status_code == 202
+    body = response.json()
+    assert body["status"] == "accepted"
+    assert body["provider"] == "stub"

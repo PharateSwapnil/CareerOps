@@ -127,9 +127,15 @@ Vite + React + TypeScript. No heavy framework opinions yet beyond routing
 (`react-router`) — component library / design system decisions are deferred to the
 milestone that builds real UI (see `ROADMAP.md`).
 
-## 7. What's NOT built yet (explicitly out of scope for Milestone 1)
+## 7. What's built vs. not yet (as of Milestone 2)
 
-- Actual job-provider integrations (Greenhouse/Lever/etc.) — stubs only
+Built:
+- One real job-provider integration: Greenhouse (`providers/job_providers/greenhouse_provider.py`)
+- Synchronous fetch (`POST /jobs/fetch`) and background ingestion (`POST /jobs/ingest`)
+  sharing dedupe logic in `services/job_ingestion.py`
+
+Not yet built:
+- Additional job-provider integrations (Lever, Ashby, RSS, career-page scraping)
 - Actual LLM provider integrations — stubs only
 - Semantic search / embeddings
 - Browser automation (Playwright)

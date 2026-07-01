@@ -12,11 +12,23 @@ and add a dated note + commit hash when a milestone completes.
 - [x] React + Vite + TS frontend shell with routing
 - [x] Architecture doc, CI skeleton
 
-## Milestone 2 — Job discovery (single provider)
-- [ ] Implement a real `JobProvider` for Greenhouse's public job board API
-- [ ] Job ingestion endpoint + background fetch job
-- [ ] Deduplication logic (source_provider + raw_source_id)
-- [ ] Basic job list UI in frontend
+## Milestone 2 — Job discovery (single provider) ✅
+- [x] Implement a real `JobProvider` for Greenhouse's public job board API
+- [x] Job ingestion endpoint + background fetch job (`POST /jobs/ingest`, runs via FastAPI BackgroundTasks)
+- [x] Deduplication logic (source_provider + raw_source_id) — extracted into `services/job_ingestion.py`, shared by sync and background paths
+- [x] Basic job list UI in frontend (existing Jobs page works unchanged since it's provider-agnostic)
+
+Notes:
+- Greenhouse's Job Board API (`boards-api.greenhouse.io`) has no server-side keyword
+  search, so keyword/location/remote filtering happens client-side after fetching
+  each board's full posting list.
+- `JobSearchQuery.board_tokens` lets callers target specific companies' Greenhouse
+  boards; defaults to a few public boards (stripe, airbnb, asana) if omitted.
+- Verified against the real API shape via web search of Greenhouse's docs and
+  covered with mocked-HTTP unit tests (`tests/test_greenhouse_provider.py`);
+  live network calls to `boards-api.greenhouse.io` were not reachable from the
+  dev sandbox's network allowlist, so a live smoke test should be run in a
+  normal environment before relying on it in production.
 
 ## Milestone 3 — LLM provider orchestration
 - [ ] Implement `LLMProvider` for Claude (Anthropic API)
