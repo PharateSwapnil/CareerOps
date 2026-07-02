@@ -7,7 +7,7 @@ from app.db.session import get_session
 from app.models.resume import Resume
 from app.models.user import User
 from app.schemas.resume import ResumeCreate, ResumeDiff, ResumeRead
-from app.services.resume_export import render_resume_pdf
+from app.services.resume_export import STRUCTURED_PREFIX, render_resume_pdf
 from app.services.resume_versioning import (
     ResumeNotFoundError,
     create_new_version,
@@ -62,7 +62,89 @@ async def create_resume(
     return resume
 
 
-@router.get("/{resume_id}", response_model=ResumeRead)
+@router.post("/structured", response_model=ResumeRead, status_code=201)
+async def create_structured_resume(
+    payload: dict,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> Resume:
+    """Creates a resume from structured JSON data using the Swapnil template.
+    The JSON is validated against StructuredResume's schema then stored
+    with a '__structured__' prefix so export.pdf renders with the full
+    designed template rather than the plain markdown fallback.
+
+    Expected payload shape:
+    {
+      "label": "My Resume",
+      "contact": {"name":..., "title":..., "phone":..., "email":...,
+                  "linkedin":..., "location":...},
+      "summary": "...",
+      "skills": [{"category": "...", "items": "..."}, ...],
+      "experience": [{
+        "company": "...", "location": "...", "role": "...", "date_range": "...",
+        "bullets": [{"text": "..."}, ...],
+        "projects": [{"name": "...", "tech_stack": "...",
+                      "bullets": [{"text": "..."}, ...]}, ...]
+      }],
+      "certifications": ["...", ...],
+      "education": [{"degree":"...", "institution":"...", "date_range":"..."}, ...]
+    }
+    """
+    from app.services.resume_data_model import (
+        BulletPoint, ContactInfo, EducationEntry, Experience,
+        Project, SkillRow, StructuredResume,
+    )
+
+    label = payload.pop("label", "Resume")
+
+    try:
+        # Validate by building the dataclass - will raise KeyError/TypeError
+        # if required fields are missing, giving a cleaner error than a
+        # 500 from json.dumps of a broken object later.
+        contact = ContactInfo(**payload["contact"])
+        skills = [SkillRow(**s) for s in payload.get("skills", [])]
+        experience = [
+            Experience(
+                company=e["company"],
+                location=e.get("location", ""),
+                role=e["role"],
+                date_range=e["date_range"],
+                bullets=[BulletPoint(b["text"]) for b in e.get("bullets", [])],
+                projects=[
+                    Project(
+                        name=p["name"],
+                        tech_stack=p.get("tech_stack", ""),
+                        bullets=[BulletPoint(b["text"]) for b in p.get("bullets", [])],
+                    )
+                    for p in e.get("projects", [])
+                ],
+            )
+            for e in payload.get("experience", [])
+        ]
+        education = [EducationEntry(**e) for e in payload.get("education", [])]
+        StructuredResume(
+            contact=contact, summary=payload.get("summary", ""),
+            skills=skills, experience=experience,
+            certifications=payload.get("certifications", []),
+            education=education,
+        )
+    except (KeyError, TypeError) as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid resume structure: {exc}") from exc
+
+    # Store as structured JSON with the prefix that triggers template rendering
+    content = STRUCTURED_PREFIX + json.dumps(payload)
+
+    resume = Resume(
+        user_id=current_user.id,
+        label=label,
+        content=content,
+        parent_version_id=None,
+        version_number=1,
+    )
+    session.add(resume)
+    session.commit()
+    session.refresh(resume)
+    return resume
 async def get_resume(
     resume_id: int,
     current_user: User = Depends(get_current_user),

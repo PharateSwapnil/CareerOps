@@ -10,10 +10,115 @@ interface Resume {
   created_at: string;
 }
 
+// ── Structured Resume Form (uses the designed Swapnil template) ──────────
+
+function StructuredResumeForm({ onCreated }: { onCreated: () => void }) {
+  const [saving, setSaving] = useState(false);
+  const [label, setLabel] = useState("My Resume");
+
+  // Keep data as a JSON string so the user can see/edit it directly
+  const [json, setJson] = useState(() =>
+    JSON.stringify(
+      {
+        contact: {
+          name: "YOUR NAME",
+          title: "ROLE · SPECIALITY · CLOUD",
+          phone: "+91-XXXXXXXXXX",
+          email: "you@email.com",
+          linkedin: "linkedin.com/in/yourhandle",
+          location: "City, Country",
+        },
+        summary: "Write your professional summary here.",
+        skills: [
+          { category: "Languages", items: "Python, SQL" },
+          { category: "Cloud", items: "AWS (S3, Lambda, EMR, Glue)" },
+        ],
+        experience: [
+          {
+            company: "Company Name, City",
+            location: "",
+            role: "Your Role",
+            date_range: "Jan 2024 – Present",
+            bullets: [{ text: "Achievement with measurable impact." }],
+            projects: [
+              {
+                name: "Project Name",
+                tech_stack: "Python · PySpark · Snowflake",
+                bullets: [{ text: "What you built and what it achieved." }],
+              },
+            ],
+          },
+        ],
+        certifications: ["Your Certification Name"],
+        education: [
+          {
+            degree: "Bachelor of ...",
+            institution: "University Name, City",
+            date_range: "Jul 2019 – Aug 2022",
+          },
+        ],
+      },
+      null,
+      2
+    )
+  );
+  const [error, setError] = useState("");
+
+  const save = async () => {
+    setError("");
+    setSaving(true);
+    try {
+      const parsed = JSON.parse(json);
+      parsed.label = label;
+      const res = await apiFetch("/api/v1/resumes/structured", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(parsed),
+      });
+      if (res.ok) {
+        onCreated();
+      } else {
+        const body = await res.json().catch(() => ({}));
+        setError(body.detail || "Failed to create resume");
+      }
+    } catch {
+      setError("Invalid JSON — fix the syntax and try again");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div>
+      <p style={{ fontSize: 12, opacity: 0.7, margin: "0 0 8px 0" }}>
+        Edit the JSON below to fill in your details. The exported PDF will
+        use the designed template matching your actual resume layout.
+      </p>
+      <input
+        placeholder="Label"
+        value={label}
+        onChange={(e) => setLabel(e.target.value)}
+        style={{ width: "100%", marginBottom: 8 }}
+      />
+      <textarea
+        value={json}
+        onChange={(e) => setJson(e.target.value)}
+        rows={22}
+        style={{ width: "100%", fontFamily: "var(--font-mono, monospace)", fontSize: 11, marginBottom: 8 }}
+      />
+      {error && <div style={{ color: "var(--danger)", fontSize: 12, marginBottom: 8 }}>{error}</div>}
+      <button className="primary" onClick={save} disabled={saving || !label}>
+        {saving ? "Saving..." : "Create with template"}
+      </button>
+    </div>
+  );
+}
+
 export default function ResumesPage() {
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [label, setLabel] = useState("");
   const [content, setContent] = useState("");
+  const [useTemplate, setUseTemplate] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [history, setHistory] = useState<Resume[]>([]);
   const [diffText, setDiffText] = useState<string | null>(null);
@@ -104,22 +209,44 @@ export default function ResumesPage() {
 
       <div className="card">
         <h3 style={{ marginTop: 0 }}>New resume</h3>
-        <input
-          placeholder="Label (e.g. Base resume)"
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          style={{ width: "100%", marginBottom: 8 }}
-        />
-        <textarea
-          placeholder="Resume content..."
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          rows={6}
-          style={{ width: "100%", marginBottom: 8 }}
-        />
-        <button onClick={createResume} disabled={!label || !content}>
-          Create
-        </button>
+
+        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+          <button
+            style={{ fontWeight: useTemplate ? 400 : 700 }}
+            onClick={() => setUseTemplate(false)}
+          >
+            Plain text / markdown
+          </button>
+          <button
+            style={{ fontWeight: useTemplate ? 700 : 400 }}
+            onClick={() => setUseTemplate(true)}
+          >
+            Swapnil template (designed PDF)
+          </button>
+        </div>
+
+        {!useTemplate ? (
+          <>
+            <input
+              placeholder="Label (e.g. Base resume)"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              style={{ width: "100%", marginBottom: 8 }}
+            />
+            <textarea
+              placeholder="Resume content..."
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              rows={6}
+              style={{ width: "100%", marginBottom: 8 }}
+            />
+            <button onClick={createResume} disabled={!label || !content}>
+              Create
+            </button>
+          </>
+        ) : (
+          <StructuredResumeForm onCreated={loadResumes} />
+        )}
       </div>
 
       <h3>Your resumes</h3>
@@ -130,7 +257,15 @@ export default function ResumesPage() {
       )}
       {resumes.map((r) => (
         <div className="card" key={r.id}>
-          <strong>{r.label}</strong> (v{r.version_number})
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <strong>{r.label}</strong>
+            <span style={{ fontSize: 11, opacity: 0.6 }}>(v{r.version_number})</span>
+            {r.content.startsWith("__structured__") && (
+              <span style={{ fontSize: 10, color: "var(--accent)", border: "1px solid var(--accent)", borderRadius: 4, padding: "1px 5px" }}>
+                designed template
+              </span>
+            )}
+          </div>
           <div style={{ marginTop: 8, display: "flex", gap: 6 }}>
             <button style={{ fontSize: 12 }} onClick={() => openHistory(r.id)}>
               View history
