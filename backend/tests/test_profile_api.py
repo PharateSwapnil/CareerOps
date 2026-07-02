@@ -1,11 +1,11 @@
 import pytest
 
 
-def test_get_profile_returns_default_user(client):
+def test_get_profile_returns_authenticated_user(client):
     response = client.get("/api/v1/me")
     assert response.status_code == 200
     body = response.json()
-    assert body["email"] == "you@localhost"
+    assert body["email"] == "test-user@example.com"
 
 
 def test_update_profile(client):

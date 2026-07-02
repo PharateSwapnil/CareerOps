@@ -3,9 +3,11 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
+from app.api.deps import get_current_user
 from app.db.session import get_session
 from app.models.application import Application, ApplicationStatus
 from app.models.job import Job
+from app.models.user import User
 from app.schemas.application import (
     ApplicationCreate,
     ApplicationRead,
@@ -13,14 +15,16 @@ from app.schemas.application import (
     ApplicationUpdate,
 )
 from app.services.application_state_machine import InvalidTransitionError, validate_transition
-from app.services.default_user import get_or_create_default_user
 
 router = APIRouter(prefix="/applications", tags=["applications"])
 
 
-def _get_or_404(session: Session, application_id: int) -> Application:
+def _get_owned_or_404(session: Session, application_id: int, user: User) -> Application:
+    # 404 (not 403) for both "doesn't exist" and "exists but isn't yours" -
+    # a 403 would confirm the id is valid and belongs to someone else,
+    # leaking information about other users' data.
     application = session.get(Application, application_id)
-    if application is None:
+    if application is None or application.user_id != user.id:
         raise HTTPException(status_code=404, detail="Application not found")
     return application
 
@@ -28,10 +32,10 @@ def _get_or_404(session: Session, application_id: int) -> Application:
 @router.get("", response_model=list[ApplicationRead])
 async def list_applications(
     status: ApplicationStatus | None = None,
+    current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> list[Application]:
-    user = get_or_create_default_user(session)
-    query = select(Application).where(Application.user_id == user.id)
+    query = select(Application).where(Application.user_id == current_user.id)
     if status is not None:
         query = query.where(Application.status == status)
     return session.exec(query).all()
@@ -39,16 +43,16 @@ async def list_applications(
 
 @router.post("", response_model=ApplicationRead, status_code=201)
 async def create_application(
-    payload: ApplicationCreate, session: Session = Depends(get_session)
+    payload: ApplicationCreate,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
 ) -> Application:
-    user = get_or_create_default_user(session)
-
     job = session.get(Job, payload.job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
 
     application = Application(
-        user_id=user.id,
+        user_id=current_user.id,
         job_id=payload.job_id,
         resume_id=payload.resume_id,
         status=payload.status,
@@ -64,18 +68,21 @@ async def create_application(
 
 @router.get("/{application_id}", response_model=ApplicationRead)
 async def get_application(
-    application_id: int, session: Session = Depends(get_session)
+    application_id: int,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
 ) -> Application:
-    return _get_or_404(session, application_id)
+    return _get_owned_or_404(session, application_id, current_user)
 
 
 @router.patch("/{application_id}", response_model=ApplicationRead)
 async def update_application(
     application_id: int,
     payload: ApplicationUpdate,
+    current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> Application:
-    application = _get_or_404(session, application_id)
+    application = _get_owned_or_404(session, application_id, current_user)
 
     update_data = payload.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -92,9 +99,10 @@ async def update_application(
 async def update_application_status(
     application_id: int,
     payload: ApplicationStatusUpdate,
+    current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> Application:
-    application = _get_or_404(session, application_id)
+    application = _get_owned_or_404(session, application_id, current_user)
 
     try:
         validate_transition(application.status, payload.status)
@@ -114,8 +122,10 @@ async def update_application_status(
 
 @router.delete("/{application_id}", status_code=204)
 async def delete_application(
-    application_id: int, session: Session = Depends(get_session)
+    application_id: int,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
 ) -> None:
-    application = _get_or_404(session, application_id)
+    application = _get_owned_or_404(session, application_id, current_user)
     session.delete(application)
     session.commit()

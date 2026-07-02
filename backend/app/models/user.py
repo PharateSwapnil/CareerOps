@@ -8,12 +8,16 @@ def utcnow() -> datetime:
 
 
 class User(SQLModel, table=True):
-    """Local user profile. CareerOps++ starts single-user/local-first;
-    multi-user support is a later milestone."""
+    """A registered CareerOps++ account. Multi-user auth (Milestone 8
+    follow-up) - every other user-owned model (Application, Resume,
+    Contact, SavedSearch) is scoped to a specific User via user_id, and
+    every route enforces that a user can only see/modify their own data.
+    See core/security.py and api/routes/auth.py for the auth flow."""
 
     id: int | None = Field(default=None, primary_key=True)
     full_name: str
     email: str = Field(index=True, unique=True)
+    password_hash: str
 
     # Free-text / JSON-ish fields kept simple for Milestone 1; may move to
     # dedicated normalized tables (Skill, Goal) in a later milestone.

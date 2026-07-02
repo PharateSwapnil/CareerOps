@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Routes, Route, NavLink, useNavigate } from "react-router-dom";
+import { useEffect, useState, ReactNode } from "react";
+import { Routes, Route, NavLink, useNavigate, Navigate } from "react-router-dom";
 import DashboardPage from "./pages/DashboardPage";
 import JobsPage from "./pages/JobsPage";
 import ApplicationsPage from "./pages/ApplicationsPage";
@@ -8,8 +8,11 @@ import ResumesPage from "./pages/ResumesPage";
 import SavedSearchesPage from "./pages/SavedSearchesPage";
 import CompaniesPage from "./pages/CompaniesPage";
 import ProfilePage from "./pages/ProfilePage";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
 import CommandPalette from "./components/CommandPalette";
 import { ThemeProvider, useTheme } from "./lib/theme";
+import { AuthProvider, useAuth } from "./lib/auth";
 
 // Single-key "go to" shortcuts, active whenever focus isn't in a text
 // input - a lighter-weight complement to the command palette for the most
@@ -23,9 +26,26 @@ const GOTO_SHORTCUTS: Record<string, string> = {
   c: "/companies",
 };
 
+function RequireAuth({ children }: { children: ReactNode }) {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+        Loading...
+      </div>
+    );
+  }
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
+}
+
 function AppShell() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -49,6 +69,11 @@ function AppShell() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [navigate]);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login");
+  };
 
   return (
     <div className="app-shell">
@@ -80,13 +105,21 @@ function AppShell() {
             Profile
           </NavLink>
         </nav>
-        <div className="sidebar-footer">
-          <button onClick={() => setPaletteOpen(true)} title="Command palette">
-            <span className="kbd">⌘K</span>
-          </button>
-          <button onClick={toggleTheme} title="Toggle theme">
-            {theme === "dark" ? "☀︎ Light" : "☾ Dark"}
-          </button>
+        <div className="sidebar-footer" style={{ flexDirection: "column", alignItems: "stretch", gap: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <button onClick={() => setPaletteOpen(true)} title="Command palette">
+              <span className="kbd">⌘K</span>
+            </button>
+            <button onClick={toggleTheme} title="Toggle theme">
+              {theme === "dark" ? "☀︎ Light" : "☾ Dark"}
+            </button>
+          </div>
+          <div style={{ fontSize: 12, opacity: 0.7, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span>{user?.full_name}</span>
+            <button onClick={handleLogout} style={{ fontSize: 11 }}>
+              Log out
+            </button>
+          </div>
         </div>
       </aside>
       <main className="main-content">
@@ -106,10 +139,29 @@ function AppShell() {
   );
 }
 
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route
+        path="/*"
+        element={
+          <RequireAuth>
+            <AppShell />
+          </RequireAuth>
+        }
+      />
+    </Routes>
+  );
+}
+
 export default function App() {
   return (
     <ThemeProvider>
-      <AppShell />
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
     </ThemeProvider>
   );
 }

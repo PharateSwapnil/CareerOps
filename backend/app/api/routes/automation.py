@@ -4,10 +4,12 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
+from app.api.deps import get_current_user
 from app.db.session import get_session
 from app.models.application import Application
 from app.models.automation_session import ApplicationAutomationSession, AutomationStatus
 from app.models.job import Job
+from app.models.user import User
 from app.schemas.automation import AutomationSessionRead, AutomationSessionStart
 from app.services.browser_automation import session_manager
 from app.services.browser_automation.playwright_driver import (
@@ -26,30 +28,47 @@ _STATUS_MAP = {
 }
 
 
-def _get_or_404(session: Session, session_id: int) -> ApplicationAutomationSession:
+def _get_owned_or_404(
+    session: Session, session_id: int, user: User
+) -> ApplicationAutomationSession:
     row = session.get(ApplicationAutomationSession, session_id)
     if row is None:
+        raise HTTPException(status_code=404, detail="Automation session not found")
+    application = session.get(Application, row.application_id)
+    if application is None or application.user_id != user.id:
         raise HTTPException(status_code=404, detail="Automation session not found")
     return row
 
 
 @router.get("/sessions", response_model=list[AutomationSessionRead])
 async def list_sessions(
+    current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> list[ApplicationAutomationSession]:
-    return session.exec(select(ApplicationAutomationSession)).all()
+    # Join through Application to only return this user's own sessions.
+    own_application_ids = set(
+        session.exec(
+            select(Application.id).where(Application.user_id == current_user.id)
+        ).all()
+    )
+    all_sessions = session.exec(select(ApplicationAutomationSession)).all()
+    return [s for s in all_sessions if s.application_id in own_application_ids]
 
 
 @router.get("/sessions/{session_id}", response_model=AutomationSessionRead)
 async def get_session_status(
-    session_id: int, session: Session = Depends(get_session)
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
 ) -> ApplicationAutomationSession:
-    return _get_or_404(session, session_id)
+    return _get_owned_or_404(session, session_id, current_user)
 
 
 @router.post("/sessions", response_model=AutomationSessionRead, status_code=201)
 async def start_session(
-    payload: AutomationSessionStart, session: Session = Depends(get_session)
+    payload: AutomationSessionStart,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
 ) -> ApplicationAutomationSession:
     """Launches a real, visible browser and begins autofilling the
     application form. Requires `playwright install chromium` to have been
@@ -57,7 +76,7 @@ async def start_session(
     explanation rather than a bare crash.
     """
     application = session.get(Application, payload.application_id)
-    if application is None:
+    if application is None or application.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Application not found")
     job = session.get(Job, application.job_id)
     if job is None:
@@ -94,11 +113,13 @@ async def start_session(
 
 @router.post("/sessions/{session_id}/resume", response_model=AutomationSessionRead)
 async def resume_session(
-    session_id: int, session: Session = Depends(get_session)
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
 ) -> ApplicationAutomationSession:
     """Call after manually handling a pause (solving the CAPTCHA, logging
     in, or filling the field yourself) in the visible browser window."""
-    row = _get_or_404(session, session_id)
+    row = _get_owned_or_404(session, session_id, current_user)
     live_session = session_manager.get(session_id)
     if live_session is None:
         raise HTTPException(
@@ -116,8 +137,12 @@ async def resume_session(
 
 
 @router.delete("/sessions/{session_id}", status_code=204)
-async def close_session(session_id: int, session: Session = Depends(get_session)) -> None:
-    row = _get_or_404(session, session_id)
+async def close_session(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> None:
+    row = _get_owned_or_404(session, session_id, current_user)
     live_session = session_manager.get(session_id)
     if live_session is not None:
         await live_session.close()

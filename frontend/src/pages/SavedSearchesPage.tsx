@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { apiFetch } from "../lib/api";
 
 interface SavedSearch {
   id: number;
@@ -31,7 +32,7 @@ export default function SavedSearchesPage() {
   );
 
   const load = async () => {
-    const res = await fetch("/api/v1/saved-searches");
+    const res = await apiFetch("/api/v1/saved-searches");
     setSearches(await res.json());
   };
 
@@ -41,7 +42,7 @@ export default function SavedSearchesPage() {
 
   const create = async () => {
     if (!name || !queryText) return;
-    const res = await fetch("/api/v1/saved-searches", {
+    const res = await apiFetch("/api/v1/saved-searches", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, query_text: queryText }),
@@ -54,7 +55,7 @@ export default function SavedSearchesPage() {
   };
 
   const remove = async (id: number) => {
-    const res = await fetch(`/api/v1/saved-searches/${id}`, { method: "DELETE" });
+    const res = await apiFetch(`/api/v1/saved-searches/${id}`, { method: "DELETE" });
     if (res.ok) {
       if (activeMatches?.id === id) setActiveMatches(null);
       load();
@@ -62,7 +63,7 @@ export default function SavedSearchesPage() {
   };
 
   const viewMatches = async (id: number) => {
-    const res = await fetch(`/api/v1/saved-searches/${id}/matches`);
+    const res = await apiFetch(`/api/v1/saved-searches/${id}/matches`);
     setActiveMatches({ id, results: await res.json() });
   };
 

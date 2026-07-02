@@ -46,6 +46,18 @@ class Settings(BaseSettings):
     # compliance posture, not something CareerOps++ scrapes itself.
     hunter_api_key: str | None = None
 
+    # Auth (multi-user accounts, JWT sessions). jwt_secret_key has NO safe
+    # default - if left unset, a random key is generated at process
+    # startup (see core/security.py), which means every login session is
+    # invalidated on every server restart. That's fine for a quick local
+    # try-it-out, but set a real persistent secret
+    # (`python -c "import secrets; print(secrets.token_hex(32))"`) for
+    # anything you'd call real usage.
+    jwt_secret_key: str | None = None
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 30
+
     cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
 
     # Order in which the LLM fallback orchestrator (Milestone 3) tries

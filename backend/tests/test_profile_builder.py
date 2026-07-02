@@ -17,7 +17,7 @@ def session():
 
 
 def test_build_applicant_profile_generates_real_pdf_not_txt(session):
-    user = User(full_name="Jane Doe", email="jane@example.com", phone="555-1234")
+    user = User(full_name="Jane Doe", email="jane@example.com", phone="555-1234", password_hash="not-a-real-hash")
     session.add(user)
     session.commit()
     session.refresh(user)
@@ -54,7 +54,7 @@ def test_build_applicant_profile_generates_real_pdf_not_txt(session):
 
 
 def test_build_applicant_profile_without_resume_has_no_file_path(session):
-    user = User(full_name="Jane Doe", email="jane@example.com")
+    user = User(full_name="Jane Doe", email="jane@example.com", password_hash="not-a-real-hash")
     session.add(user)
     session.commit()
     session.refresh(user)

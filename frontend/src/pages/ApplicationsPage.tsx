@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { apiFetch } from "../lib/api";
 
 export default function ApplicationsPage() {
   const [resumeText, setResumeText] = useState("");
@@ -20,7 +21,7 @@ export default function ApplicationsPage() {
         mode === "resume-optimize"
           ? "/api/v1/ai/resume-optimize"
           : "/api/v1/ai/cover-letter";
-      const res = await fetch(endpoint, {
+      const res = await apiFetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -42,7 +43,7 @@ export default function ApplicationsPage() {
   };
 
   const saveAsResume = async () => {
-    const res = await fetch("/api/v1/resumes", {
+    const res = await apiFetch("/api/v1/resumes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

@@ -19,6 +19,15 @@ in-memory SQLite database. Two separate things need to point at it:
    was updated to read `db_session.engine` dynamically (rather than
    binding the name at import time) specifically so this fixture can
    monkeypatch it too.
+
+Since real auth (register/login/JWT) landed, every route except /auth/*
+and /health now requires a Bearer token. Rather than edit every one of the
+~150 existing test call sites to pass an Authorization header, this
+fixture registers one throwaway test user per test and sets
+`client.headers["Authorization"]` on the shared httpx client - since
+httpx persists default headers across every request made through that
+client instance, every existing test transparently becomes authenticated
+without any change to the tests themselves.
 """
 import pytest
 from fastapi.testclient import TestClient
@@ -49,8 +58,17 @@ def client(monkeypatch):
     monkeypatch.setattr(db_session, "engine", engine)
 
     with TestClient(app) as test_client:
+        register_resp = test_client.post(
+            "/api/v1/auth/register",
+            json={
+                "full_name": "Test User",
+                "email": "test-user@example.com",
+                "password": "test-password-123",
+            },
+        )
+        access_token = register_resp.json()["access_token"]
+        test_client.headers["Authorization"] = f"Bearer {access_token}"
         yield test_client
 
     app.dependency_overrides.clear()
     engine.dispose()
-

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { apiFetch } from "../lib/api";
 
 interface Resume {
   id: number;
@@ -19,7 +20,7 @@ export default function ResumesPage() {
   const [newVersionContent, setNewVersionContent] = useState("");
 
   const loadResumes = async () => {
-    const res = await fetch("/api/v1/resumes");
+    const res = await apiFetch("/api/v1/resumes");
     setResumes(await res.json());
   };
 
@@ -29,7 +30,7 @@ export default function ResumesPage() {
 
   const createResume = async () => {
     if (!label || !content) return;
-    const res = await fetch("/api/v1/resumes", {
+    const res = await apiFetch("/api/v1/resumes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ label, content }),
@@ -44,13 +45,13 @@ export default function ResumesPage() {
   const openHistory = async (resumeId: number) => {
     setSelectedId(resumeId);
     setDiffText(null);
-    const res = await fetch(`/api/v1/resumes/${resumeId}/history`);
+    const res = await apiFetch(`/api/v1/resumes/${resumeId}/history`);
     setHistory(await res.json());
   };
 
   const addVersion = async () => {
     if (!selectedId || !newVersionContent) return;
-    const res = await fetch(`/api/v1/resumes/${selectedId}/versions`, {
+    const res = await apiFetch(`/api/v1/resumes/${selectedId}/versions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -67,7 +68,7 @@ export default function ResumesPage() {
   };
 
   const rollback = async (versionId: number) => {
-    const res = await fetch(`/api/v1/resumes/${versionId}/rollback`, {
+    const res = await apiFetch(`/api/v1/resumes/${versionId}/rollback`, {
       method: "POST",
     });
     if (res.ok) {
@@ -78,9 +79,23 @@ export default function ResumesPage() {
   };
 
   const showDiff = async (fromId: number, toId: number) => {
-    const res = await fetch(`/api/v1/resumes/${fromId}/diff/${toId}`);
+    const res = await apiFetch(`/api/v1/resumes/${fromId}/diff/${toId}`);
     const data = await res.json();
     setDiffText(data.diff || "(no differences)");
+  };
+
+  const downloadResumePdf = async (resumeId: number, label: string) => {
+    const res = await apiFetch(`/api/v1/resumes/${resumeId}/export.pdf`);
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${label.replace(/\s+/g, "_")}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
   };
 
   return (
@@ -120,9 +135,9 @@ export default function ResumesPage() {
             <button style={{ fontSize: 12 }} onClick={() => openHistory(r.id)}>
               View history
             </button>
-            <a href={`/api/v1/resumes/${r.id}/export.pdf`} download>
-              <button style={{ fontSize: 12 }}>Download PDF</button>
-            </a>
+            <button style={{ fontSize: 12 }} onClick={() => downloadResumePdf(r.id, r.label)}>
+              Download PDF
+            </button>
           </div>
         </div>
       ))}
@@ -159,9 +174,12 @@ export default function ResumesPage() {
                 <button style={{ fontSize: 12 }} onClick={() => rollback(v.id)}>
                   Roll back to this
                 </button>
-                <a href={`/api/v1/resumes/${v.id}/export.pdf`} download>
-                  <button style={{ fontSize: 12 }}>PDF</button>
-                </a>
+                <button
+                  style={{ fontSize: 12 }}
+                  onClick={() => downloadResumePdf(v.id, `${v.version_number}`)}
+                >
+                  PDF
+                </button>
               </div>
             </div>
           ))}

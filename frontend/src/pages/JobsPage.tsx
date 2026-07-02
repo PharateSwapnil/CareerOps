@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { apiFetch } from "../lib/api";
 
 interface Job {
   id: number;
@@ -29,19 +30,19 @@ export default function JobsPage() {
   const [similarResults, setSimilarResults] = useState<ScoredJob[]>([]);
 
   const loadJobs = async () => {
-    const res = await fetch("/api/v1/jobs");
+    const res = await apiFetch("/api/v1/jobs");
     setJobs(await res.json());
   };
 
   const loadProviders = async () => {
-    const res = await fetch("/api/v1/jobs/providers");
+    const res = await apiFetch("/api/v1/jobs/providers");
     setProviders(await res.json());
   };
 
   const fetchJobs = async () => {
     setLoading(true);
     try {
-      await fetch(`/api/v1/jobs/fetch?provider_name=${provider}`, {
+      await apiFetch(`/api/v1/jobs/fetch?provider_name=${provider}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ keywords: ["Engineer"], limit: 25 }),
@@ -58,7 +59,7 @@ export default function JobsPage() {
   }, []);
 
   const addToPipeline = async (jobId: number) => {
-    const res = await fetch("/api/v1/applications", {
+    const res = await apiFetch("/api/v1/applications", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ job_id: jobId }),
@@ -73,7 +74,7 @@ export default function JobsPage() {
     setSearching(true);
     setSimilarFor(null);
     try {
-      const res = await fetch("/api/v1/jobs/semantic-search", {
+      const res = await apiFetch("/api/v1/jobs/semantic-search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: searchQuery, limit: 20 }),
@@ -92,7 +93,7 @@ export default function JobsPage() {
   const showSimilar = async (jobId: number) => {
     setSearchResults(null);
     setSimilarFor(jobId);
-    const res = await fetch(`/api/v1/jobs/${jobId}/similar?limit=10`);
+    const res = await apiFetch(`/api/v1/jobs/${jobId}/similar?limit=10`);
     setSimilarResults(await res.json());
   };
 

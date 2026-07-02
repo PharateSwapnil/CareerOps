@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { apiFetch } from "../lib/api";
 
 interface Company {
   id: number;
@@ -26,7 +27,7 @@ export default function CompaniesPage() {
   const [websiteInput, setWebsiteInput] = useState("");
 
   const load = async () => {
-    const res = await fetch("/api/v1/companies");
+    const res = await apiFetch("/api/v1/companies");
     setCompanies(await res.json());
   };
 
@@ -37,13 +38,13 @@ export default function CompaniesPage() {
   const openCompany = async (company: Company) => {
     setSelected(company);
     setWebsiteInput(company.website ?? "");
-    const res = await fetch(`/api/v1/companies/${company.id}/jobs`);
+    const res = await apiFetch(`/api/v1/companies/${company.id}/jobs`);
     setCompanyJobs(await res.json());
   };
 
   const saveWebsite = async () => {
     if (!selected) return;
-    const res = await fetch(`/api/v1/companies/${selected.id}`, {
+    const res = await apiFetch(`/api/v1/companies/${selected.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ website: websiteInput }),
@@ -59,7 +60,7 @@ export default function CompaniesPage() {
     if (!selected) return;
     setEnriching(true);
     try {
-      const res = await fetch(`/api/v1/companies/${selected.id}/enrich`, {
+      const res = await apiFetch(`/api/v1/companies/${selected.id}/enrich`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { apiFetch } from "../lib/api";
 
 interface Application {
   id: number;
@@ -56,8 +57,8 @@ export default function DashboardPage() {
     setLoading(true);
     try {
       const [appsRes, jobsRes] = await Promise.all([
-        fetch("/api/v1/applications"),
-        fetch("/api/v1/jobs"),
+        apiFetch("/api/v1/applications"),
+        apiFetch("/api/v1/jobs"),
       ]);
       const apps: Application[] = await appsRes.json();
       const jobList: Job[] = await jobsRes.json();
@@ -75,7 +76,7 @@ export default function DashboardPage() {
   const advance = async (app: Application) => {
     const next = NEXT_STATUS[app.status];
     if (!next) return;
-    const res = await fetch(`/api/v1/applications/${app.id}/status`, {
+    const res = await apiFetch(`/api/v1/applications/${app.id}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: next }),
@@ -84,7 +85,7 @@ export default function DashboardPage() {
   };
 
   const reject = async (app: Application) => {
-    const res = await fetch(`/api/v1/applications/${app.id}/status`, {
+    const res = await apiFetch(`/api/v1/applications/${app.id}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "rejected" }),
@@ -93,7 +94,7 @@ export default function DashboardPage() {
   };
 
   const startAutomation = async (app: Application) => {
-    const res = await fetch("/api/v1/automation/sessions", {
+    const res = await apiFetch("/api/v1/automation/sessions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ application_id: app.id }),
@@ -105,7 +106,7 @@ export default function DashboardPage() {
   const resumeAutomation = async (app: Application) => {
     const session = automationByApp[app.id];
     if (!session) return;
-    const res = await fetch(`/api/v1/automation/sessions/${session.id}/resume`, {
+    const res = await apiFetch(`/api/v1/automation/sessions/${session.id}/resume`, {
       method: "POST",
     });
     const data = await res.json();
@@ -115,7 +116,7 @@ export default function DashboardPage() {
   const closeAutomation = async (app: Application) => {
     const session = automationByApp[app.id];
     if (!session) return;
-    await fetch(`/api/v1/automation/sessions/${session.id}`, { method: "DELETE" });
+    await apiFetch(`/api/v1/automation/sessions/${session.id}`, { method: "DELETE" });
     setAutomationByApp((prev) => {
       const next = { ...prev };
       delete next[app.id];

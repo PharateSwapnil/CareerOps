@@ -5,10 +5,13 @@ do I actually run this thing." Everything here is also scattered in
 docstrings and ROADMAP.md notes throughout the codebase — this file just
 collects it in one spot.
 
-**The most important fact: CareerOps++ runs with zero API keys.** Every
-external integration (LLM providers, some job providers, the embedding
-provider) has a free, keyless fallback so the app is fully usable out of
-the box. Keys only unlock *better* results, not basic functionality.
+**The most important fact: CareerOps++ runs with zero third-party API
+keys.** Every *external* integration (LLM providers, some job providers,
+the embedding provider) has a free, keyless fallback so the app is fully
+usable out of the box. Keys only unlock *better* results, not basic
+functionality. The one thing that IS required — separate from all of
+that — is creating your own account (email + password) on first run; see
+§3's "Accounts" section and §4's first-run steps.
 
 ---
 
@@ -50,9 +53,11 @@ cd backend
 cp .env.example .env
 ```
 
-Every single variable below is **optional**. Leave any of them blank and
-that specific feature falls back to a free/local/stub behavior instead of
-erroring — nothing in the app requires a paid key to function.
+Every variable below except `JWT_SECRET_KEY` is fully optional — leave any
+of them blank and that specific feature falls back to a free/local/stub
+behavior instead of erroring. `JWT_SECRET_KEY` technically won't error
+either, but leaving it blank silently degrades session persistence (see
+the table below), so it's the one you actually want to set.
 
 ### Core (usually leave as-is)
 
@@ -60,6 +65,16 @@ erroring — nothing in the app requires a paid key to function.
 |---|---|---|
 | `DEBUG` | `true` | Verbose SQL logging; set `false` for anything resembling production |
 | `DATABASE_URL` | `sqlite:///./data/careerops.db` | Local-first SQLite file, created automatically |
+| `JWT_SECRET_KEY` | random per-process | **Set this one.** Without it, a random secret is generated every time the server starts, which logs everyone out on every restart. Generate a real one with `python -c "import secrets; print(secrets.token_hex(32))"` |
+
+### Accounts — CareerOps++ now has real multi-user auth
+
+Unlike everything else in this guide, this isn't optional: the app has
+registered accounts (bcrypt-hashed passwords, JWT sessions) and every
+feature except `/health` requires being signed in. On first run, go to
+the app and click "No account? Register" — there's no seed/default user
+anymore. Each account's data (applications, resumes, contacts, saved
+searches) is completely isolated from every other account's.
 
 ### AI features — resume optimization, cover letters, networking messages, company summaries
 
@@ -178,12 +193,15 @@ Open `http://localhost:5173`. That's the whole app.
 
 ### First things to do once it's running
 
-1. **Profile page** — fill in your name, email, phone, LinkedIn, portfolio.
-   This is what autofill (Milestone 8) uses; nothing else needs it.
-2. **Jobs page** — pick a provider (try `greenhouse` or `remotive`, both
+1. **Register an account** — click "No account? Register" on the login
+   screen. Your login email/password never leave your own backend; they're
+   hashed with bcrypt and stored in your local SQLite file.
+2. **Profile page** — fill in your name, phone, LinkedIn, portfolio. This
+   is what autofill (Milestone 8) uses; nothing else needs it.
+3. **Jobs page** — pick a provider (try `greenhouse` or `remotive`, both
    keyless) and click Fetch. Jobs get auto-embedded and auto-linked to
    Company records as they're ingested.
-3. **⌘K / Ctrl+K** anywhere opens the command palette.
+4. **⌘K / Ctrl+K** anywhere opens the command palette.
 
 ### Verifying it's healthy
 

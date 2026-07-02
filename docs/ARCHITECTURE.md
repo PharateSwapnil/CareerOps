@@ -54,7 +54,8 @@ Entities live in `backend/app/models/`. All use SQLModel (SQLAlchemy + Pydantic)
 
 | Entity        | Purpose                                                             |
 |---------------|----------------------------------------------------------------------|
-| `User`        | Local user profile: skills, goals, preferences                     |
+| `User`        | A registered account: name, email, password hash, skills/goals/prefs |
+| `RefreshToken`| An issued refresh token's id (`jti`) + expiry + revoked flag, for logout |
 | `Company`     | Normalized company record + AI-generated intelligence summary       |
 | `Job`         | Normalized job posting, regardless of source provider               |
 | `Resume`      | Versioned resume — every generated/edited version is kept           |
@@ -207,8 +208,15 @@ Built:
 - Resume version-chain management (`services/resume_versioning.py`):
   immutable versions, chain history lookup, unified diff between versions,
   and rollback-by-creating-a-new-head-version
-- A single-local-user shim (`services/default_user.py`) that Applications,
-  Resumes, and Contacts attach to until real auth exists
+- Full multi-user auth (`core/security.py`, `services/auth_service.py`,
+  `api/routes/auth.py`, `api/deps.py`): bcrypt password hashing, JWT
+  access+refresh tokens, logout/revocation via a `RefreshToken` table, and
+  per-user data isolation enforced on every Application/Resume/Contact/
+  SavedSearch/ApplicationAutomationSession route (404, not 403, for
+  another user's data - never confirms an id belongs to someone else).
+  Replaced the single-local-user shim (`services/default_user.py`, now
+  deleted) - see `docs/ROADMAP.md`'s "Follow-up: Full multi-user auth" for
+  the design decisions and two real bugs found while building it.
 - Semantic job search: pluggable embedding providers (local hashing-trick
   default + optional Voyage AI neural embeddings), in-process cosine
   similarity search (`services/embeddings.py`), auto-embedding on job
@@ -251,8 +259,6 @@ Built:
   follow-up section for the full reasoning
 
 Not yet built / known gaps (all honestly tracked, not swept under anything):
-- Real auth / multi-user support (still the single-local-user shim from
-  Milestone 4)
 - `playwright_driver.py` (Milestone 8) has never been run against a real
   browser or a real application form - this dev sandbox can't download the
   Chromium binary. Verify manually before relying on it.
@@ -277,18 +283,23 @@ Each of these is tracked in `docs/ROADMAP.md`.
 If you're picking this up in a new conversation: read this file and
 `docs/ROADMAP.md` first, then run `git log --oneline` to see what's landed.
 
-All 9 core milestones are now complete, and the resume-PDF-export gap
-flagged when Milestone 8 shipped has since been closed (see
-`docs/ROADMAP.md`'s "Follow-up: Resume PDF export" section). There is no
-more "next milestone" for the old resume prompt to point to - work from
-here should be scoped to one of the tracked gaps instead (see section 7
-above and `docs/ROADMAP.md`'s "Follow-up still needed" section), roughly
-in priority order for actually using this tool day-to-day:
+All 9 core milestones are complete, and several follow-up gaps have since
+been closed: resume PDF export (Milestone 8), test database isolation
+(Milestone 4), contact email enrichment, and - the largest one - full
+multi-user auth, replacing the single-local-user shim entirely (see
+`docs/ROADMAP.md`'s "Follow-up: Full multi-user auth" for the design
+decisions and two real bugs found while building it). There is no more
+"next milestone" for the old resume prompt to point to - work from here
+should be scoped to one of the tracked gaps instead (see section 7 above
+and `docs/ROADMAP.md`'s "Follow-up still needed" section), roughly in
+priority order for actually using this tool day-to-day:
 
 1. Manually verify `playwright_driver.py` against a real browser and a
    real Greenhouse/Lever application form - it was never executable in the
    dev sandbox it was written in.
-2. Real auth / multi-user support, replacing the single-local-user shim.
+2. Refresh token rotation (issue a new refresh token on each use, so a
+   stolen-and-reused-once token can be detected) - a reasonable auth
+   hardening pass, not done in the initial implementation.
 3. Whichever job sources from the `docs/ROADMAP.md` backlog are actually
    relevant to the person's own job search - don't build the whole list
    speculatively.

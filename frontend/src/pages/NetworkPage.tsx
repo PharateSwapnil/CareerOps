@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { apiFetch } from "../lib/api";
 
 interface Contact {
   id: number;
@@ -47,12 +48,12 @@ export default function NetworkPage() {
   const [emailLookupMessage, setEmailLookupMessage] = useState("");
 
   const loadContacts = async () => {
-    const res = await fetch("/api/v1/contacts");
+    const res = await apiFetch("/api/v1/contacts");
     setContacts(await res.json());
   };
 
   const loadFollowUps = async () => {
-    const res = await fetch("/api/v1/contacts/follow-ups?days_ahead=14");
+    const res = await apiFetch("/api/v1/contacts/follow-ups?days_ahead=14");
     setFollowUps(await res.json());
   };
 
@@ -63,7 +64,7 @@ export default function NetworkPage() {
 
   const createContact = async () => {
     if (!fullName) return;
-    const res = await fetch("/api/v1/contacts", {
+    const res = await apiFetch("/api/v1/contacts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -84,7 +85,7 @@ export default function NetworkPage() {
     setSelectedId(contact.id);
     setMsgResult("");
     setEmailLookupMessage("");
-    const res = await fetch(`/api/v1/contacts/${contact.id}/interactions`);
+    const res = await apiFetch(`/api/v1/contacts/${contact.id}/interactions`);
     setInteractions(await res.json());
   };
 
@@ -95,7 +96,7 @@ export default function NetworkPage() {
     setFindingEmail(true);
     setEmailLookupMessage("");
     try {
-      const res = await fetch(`/api/v1/contacts/${selectedContact.id}/enrich-email`, {
+      const res = await apiFetch(`/api/v1/contacts/${selectedContact.id}/enrich-email`, {
         method: "POST",
       });
       const data = await res.json();
@@ -116,21 +117,21 @@ export default function NetworkPage() {
 
   const logInteraction = async () => {
     if (!selectedId || !interactionSummary) return;
-    const res = await fetch(`/api/v1/contacts/${selectedId}/interactions`, {
+    const res = await apiFetch(`/api/v1/contacts/${selectedId}/interactions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type: "note", summary: interactionSummary }),
     });
     if (res.ok) {
       setInteractionSummary("");
-      const listRes = await fetch(`/api/v1/contacts/${selectedId}/interactions`);
+      const listRes = await apiFetch(`/api/v1/contacts/${selectedId}/interactions`);
       setInteractions(await listRes.json());
     }
   };
 
   const setFollowUp = async () => {
     if (!selectedId || !followUpDate) return;
-    const res = await fetch(`/api/v1/contacts/${selectedId}`, {
+    const res = await apiFetch(`/api/v1/contacts/${selectedId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ next_follow_up_at: new Date(followUpDate).toISOString() }),
@@ -146,7 +147,7 @@ export default function NetworkPage() {
     if (!selectedContact || !msgPurpose) return;
     setMsgLoading(true);
     try {
-      const res = await fetch("/api/v1/ai/networking-message", {
+      const res = await apiFetch("/api/v1/ai/networking-message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

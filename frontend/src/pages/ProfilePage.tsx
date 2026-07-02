@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { apiFetch } from "../lib/api";
 
 interface Profile {
   full_name: string;
@@ -15,7 +16,7 @@ export default function ProfilePage() {
   const [saved, setSaved] = useState(false);
 
   const load = async () => {
-    const res = await fetch("/api/v1/me");
+    const res = await apiFetch("/api/v1/me");
     setProfile(await res.json());
   };
 
@@ -28,7 +29,7 @@ export default function ProfilePage() {
     setSaving(true);
     setSaved(false);
     try {
-      const res = await fetch("/api/v1/me", {
+      const res = await apiFetch("/api/v1/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(profile),

@@ -2,10 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from sqlmodel import Session, select
 
+from app.api.deps import get_current_user
 from app.db.session import get_session
 from app.models.resume import Resume
+from app.models.user import User
 from app.schemas.resume import ResumeCreate, ResumeDiff, ResumeRead
-from app.services.default_user import get_or_create_default_user
 from app.services.resume_export import render_resume_pdf
 from app.services.resume_versioning import (
     ResumeNotFoundError,
@@ -18,20 +19,22 @@ from app.services.resume_versioning import (
 router = APIRouter(prefix="/resumes", tags=["resumes"])
 
 
-def _get_or_404(session: Session, resume_id: int) -> Resume:
+def _get_owned_or_404(session: Session, resume_id: int, user: User) -> Resume:
     resume = session.get(Resume, resume_id)
-    if resume is None:
+    if resume is None or resume.user_id != user.id:
         raise HTTPException(status_code=404, detail="Resume not found")
     return resume
 
 
 @router.get("", response_model=list[ResumeRead])
-async def list_resumes(session: Session = Depends(get_session)) -> list[Resume]:
+async def list_resumes(
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> list[Resume]:
     """Lists only the latest version of each resume chain, so callers see
     one row per resume rather than every historical version. Use
     /resumes/{id}/history to see a chain's full version list."""
-    user = get_or_create_default_user(session)
-    all_resumes = session.exec(select(Resume).where(Resume.user_id == user.id)).all()
+    all_resumes = session.exec(select(Resume).where(Resume.user_id == current_user.id)).all()
 
     parent_ids = {r.parent_version_id for r in all_resumes if r.parent_version_id is not None}
     latest_only = [r for r in all_resumes if r.id not in parent_ids]
@@ -40,12 +43,13 @@ async def list_resumes(session: Session = Depends(get_session)) -> list[Resume]:
 
 @router.post("", response_model=ResumeRead, status_code=201)
 async def create_resume(
-    payload: ResumeCreate, session: Session = Depends(get_session)
+    payload: ResumeCreate,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
 ) -> Resume:
     """Creates a brand-new resume chain (version 1, no parent)."""
-    user = get_or_create_default_user(session)
     resume = Resume(
-        user_id=user.id,
+        user_id=current_user.id,
         label=payload.label,
         content=payload.content,
         tailored_for_job_id=payload.tailored_for_job_id,
@@ -59,17 +63,25 @@ async def create_resume(
 
 
 @router.get("/{resume_id}", response_model=ResumeRead)
-async def get_resume(resume_id: int, session: Session = Depends(get_session)) -> Resume:
-    return _get_or_404(session, resume_id)
+async def get_resume(
+    resume_id: int,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> Resume:
+    return _get_owned_or_404(session, resume_id, current_user)
 
 
 @router.get("/{resume_id}/export.pdf")
-async def export_resume_pdf(resume_id: int, session: Session = Depends(get_session)) -> Response:
+async def export_resume_pdf(
+    resume_id: int,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> Response:
     """Renders this resume version as a real PDF document, for downloading
     or for the browser-assisted application autofill (Milestone 8) to
     upload to a resume-upload field - closing the gap where autofill was
     uploading raw .txt content, which most ATS forms reject."""
-    resume = _get_or_404(session, resume_id)
+    resume = _get_owned_or_404(session, resume_id, current_user)
     pdf_bytes = render_resume_pdf(resume.label, resume.content)
     filename = f"{resume.label.replace(' ', '_')}_v{resume.version_number}.pdf"
     return Response(
@@ -81,9 +93,13 @@ async def export_resume_pdf(resume_id: int, session: Session = Depends(get_sessi
 
 @router.post("/{resume_id}/versions", response_model=ResumeRead, status_code=201)
 async def create_version(
-    resume_id: int, payload: ResumeCreate, session: Session = Depends(get_session)
+    resume_id: int,
+    payload: ResumeCreate,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
 ) -> Resume:
     """Creates a new version extending the chain from `resume_id`."""
+    _get_owned_or_404(session, resume_id, current_user)  # ownership check
     try:
         return create_new_version(
             session,
@@ -97,8 +113,13 @@ async def create_version(
 
 
 @router.get("/{resume_id}/history", response_model=list[ResumeRead])
-async def get_history(resume_id: int, session: Session = Depends(get_session)) -> list[Resume]:
+async def get_history(
+    resume_id: int,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> list[Resume]:
     """Returns every version in the same chain as `resume_id`, oldest first."""
+    _get_owned_or_404(session, resume_id, current_user)  # ownership check
     try:
         return get_version_history(session, resume_id)
     except ResumeNotFoundError as exc:
@@ -107,8 +128,13 @@ async def get_history(resume_id: int, session: Session = Depends(get_session)) -
 
 @router.get("/{from_id}/diff/{to_id}", response_model=ResumeDiff)
 async def get_diff(
-    from_id: int, to_id: int, session: Session = Depends(get_session)
+    from_id: int,
+    to_id: int,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
 ) -> ResumeDiff:
+    _get_owned_or_404(session, from_id, current_user)  # ownership check
+    _get_owned_or_404(session, to_id, current_user)
     try:
         diff_text = diff_versions(session, from_id, to_id)
     except ResumeNotFoundError as exc:
@@ -117,9 +143,14 @@ async def get_diff(
 
 
 @router.post("/{resume_id}/rollback", response_model=ResumeRead, status_code=201)
-async def rollback(resume_id: int, session: Session = Depends(get_session)) -> Resume:
+async def rollback(
+    resume_id: int,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> Resume:
     """Creates a new version at the head of the chain with `resume_id`'s
     content - i.e. "revert to this version" without mutating history."""
+    _get_owned_or_404(session, resume_id, current_user)  # ownership check
     try:
         return rollback_to_version(session, resume_id)
     except ResumeNotFoundError as exc:

@@ -162,10 +162,12 @@ Notes:
   enforces it server-side (409 on an illegal transition); the dashboard UI
   only ever offers legal next-steps as buttons, but the backend is the
   source of truth either way.
-- No real auth yet (still out of scope per `ARCHITECTURE.md`), so
-  `services/default_user.py` get-or-creates a single local user record that
-  Applications/Resumes attach to. This is explicitly flagged as a temporary
-  shim to replace once auth exists, not a design decision to build on.
+- No real auth at the time this milestone shipped, so
+  `services/default_user.py` got-or-created a single local user record
+  that Applications/Resumes attached to. Explicitly flagged then as a
+  temporary shim, not a design decision to build on - and it was in fact
+  fully replaced later: see "Follow-up: Full multi-user auth" further down
+  this file. `services/default_user.py` no longer exists in the codebase.
 - Resume versioning (`services/resume_versioning.py`) keeps every version
   row immutable; edits and rollbacks both create a *new* row extending the
   chain (rollback = "create a new head version with old content", it never
@@ -576,13 +578,106 @@ the second was a genuine bug in the first attempt at this fix:
   (previously it accumulated real rows).
 - 120/120 tests still passing after the change.
 
+## Follow-up: Full multi-user auth ✅
+
+Replaces the single-local-user shim (`services/default_user.py`, now
+deleted) with real accounts: registration, login, JWT access + refresh
+tokens, logout/revocation, and per-user data isolation enforced on every
+route.
+
+**Design decisions:**
+- **Passwords**: hashed with `bcrypt` (via the `bcrypt` package directly,
+  not `passlib` - passlib has had recent compatibility friction with newer
+  bcrypt versions). Verification fails closed (returns `False`, never
+  raises) on a malformed/foreign hash rather than 500ing.
+- **Tokens**: short-lived access tokens (30 min default) + longer-lived
+  refresh tokens (30 days default), both JWTs signed with `PyJWT`. This is
+  the standard access+refresh split - short-lived access tokens limit the
+  damage window if one leaks, while refresh tokens avoid forcing a login
+  every 30 minutes.
+- **Revocation**: a pure stateless-JWT scheme can't truly log someone out -
+  the token stays valid until it naturally expires even after "logout."
+  `RefreshToken` (new model) stores each issued refresh token's `jti`
+  (a random id embedded in the JWT payload, NOT the raw token itself) so
+  logout can mark it revoked. Access tokens still can't be revoked before
+  their own (short) expiry - a known, accepted tradeoff of this pattern,
+  not an oversight; revoking access tokens individually would require
+  either a server-side blocklist checked on every request (defeating the
+  point of stateless access tokens) or very short access-token lifetimes
+  (already the case here, at 30 min).
+- **JWT secret**: if `JWT_SECRET_KEY` isn't set, a random one is generated
+  per-process at startup (logged as a warning, not silent) - meaning every
+  session is invalidated on every server restart. Fine for "just try it,"
+  explicitly flagged in SETUP.md as needing a real persistent secret for
+  anything beyond that.
+- **Ownership checks**: every route touching Application, Resume, Contact,
+  SavedSearch, or ApplicationAutomationSession now verifies the record
+  belongs to the authenticated user before returning/modifying it, and
+  returns **404, not 403**, when it doesn't - a 403 would confirm the id
+  is valid and belongs to someone else, which is itself a data leak.
+  Job/Company/JobEmbedding records stay global/shared (no `user_id` - they
+  were never private data).
+- **Test migration**: rather than editing the ~150 existing test call
+  sites to attach an Authorization header individually, `conftest.py`'s
+  shared `client` fixture registers one throwaway test user per test and
+  sets `client.headers["Authorization"]` on the shared httpx client -
+  since httpx persists default headers across every request made through
+  that client instance, every existing test transparently became
+  authenticated with zero changes to the tests themselves. Only 4 test
+  files needed real edits: 3 that constructed `User(...)` rows directly
+  (needed a `password_hash` now that it's a required field) and one that
+  asserted the old shim's hardcoded email.
+- **Frontend**: `src/lib/tokenStore.ts` (access token in memory only,
+  refresh token in `localStorage`), `src/lib/api.ts` (`apiFetch` - a
+  drop-in `fetch` replacement that attaches the auth header and, on a 401,
+  attempts exactly one silent refresh+retry before giving up), and
+  `src/lib/auth.tsx` (`AuthProvider`/`useAuth`, session restoration on page
+  reload via the stored refresh token). New Login/Register pages; every
+  existing page's `fetch(` calls were mechanically replaced with
+  `apiFetch(` (40 call sites across 8 files) - verified safe first by
+  confirming none were substring matches like "prefetch(" before the
+  blanket replace.
+
+**Two real bugs found and fixed while building this, not just assumed
+away:**
+1. `refresh_access_token`'s expiry check crashed with `TypeError: can't
+   compare offset-naive and offset-aware datetimes` - SQLite has no native
+   timezone-aware datetime type, so a `RefreshToken.expires_at` written as
+   UTC comes back naive after a round-trip through the DB, even though the
+   Python object that wrote it was timezone-aware. Caught by
+   `test_refresh_access_token_succeeds_with_valid_token`, not assumed to
+   work. Fixed by comparing against a naive UTC "now" instead.
+2. The PDF download buttons on the Resumes page used plain `<a href>`
+   tags pointing at `/api/v1/resumes/{id}/export.pdf`. Browsers don't
+   attach custom headers to plain link navigation, so once that endpoint
+   required auth, clicking Download would have silently 401'd. Fixed by
+   fetching the PDF via `apiFetch` and triggering a blob download instead
+   - found by deliberately auditing for any remaining plain `<a href="/api/...">`
+   pattern after the migration, not by luck.
+
+Tests: 9 (`core/security.py` - password hashing determinism, token
+round-trips, tampered-signature rejection) + 12 (`auth_service.py` -
+register/login/refresh/revoke logic) + 15 (API-level: register/login/
+refresh/logout flows, and - the actual point of all this - explicit tests
+that two different users cannot see, list, or delete each other's
+applications/contacts, and that profile data is genuinely per-user) = 36
+new, 166/166 total passing. Frontend typechecks and production-builds
+clean.
+
 ## Follow-up still needed
 
 - `playwright_driver.py` (Milestone 8) still has never been run against a
   real browser - this dev sandbox can't download the Chromium binary from
   `cdn.playwright.dev`. Manually verify against a real Greenhouse or Lever
   application form before trusting it.
-- Real auth / multi-user support, replacing the single-local-user shim.
+- Refresh token rotation: `refresh_access_token` currently reuses the same
+  refresh token across its whole 30-day lifetime rather than issuing a new
+  one on each use (which would let a stolen-and-reused-once refresh token
+  be detected). A reasonable hardening pass, not done in the initial auth
+  implementation.
+- Access tokens can't be individually revoked before their own (short)
+  expiry - an accepted tradeoff of the stateless-access-token pattern, not
+  a bug, but worth knowing if "instant revoke everywhere" ever matters.
 - Job sources from the backlog below, picked based on what's actually
   relevant to a real job search rather than built speculatively.
 - Per-page interaction polish beyond Milestone 9's shared design system.
