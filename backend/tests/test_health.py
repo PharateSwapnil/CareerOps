@@ -1,14 +1,4 @@
 import pytest
-from fastapi.testclient import TestClient
-
-from app.main import app
-
-
-@pytest.fixture()
-def client():
-    # Use as a context manager so FastAPI's lifespan (init_db) actually runs.
-    with TestClient(app) as c:
-        yield c
 
 
 def test_health_check(client):

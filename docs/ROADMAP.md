@@ -193,11 +193,11 @@ Notes:
   service logic, full API flows for both Applications and Resumes),
   51/51 total passing.
 
-Known gap carried forward: tests share a persistent SQLite file
-(`backend/data/careerops.db`) rather than an isolated per-run database, so
-cross-test-file pollution is possible (as the stub-provider bug above
-demonstrated). Worth introducing a proper test-fixture override of
-`DATABASE_URL` to an in-memory or temp-file DB in a future cleanup pass.
+Known gap carried forward, later closed: tests shared a persistent SQLite
+file (`backend/data/careerops.db`) rather than an isolated per-run
+database, so cross-test-file pollution was possible (as the stub-provider
+bug above demonstrated). **Fixed in a later pass** - see "Follow-up: Test
+database isolation" further down this file.
 
 ## Milestone 5 — Semantic job search ✅
 - [x] Embedding generation for jobs + saved searches
@@ -482,6 +482,37 @@ resume content this app produces.
   non-empty bytes) + 2 for `profile_builder` generating a real `.pdf` file
   + 1 API test, 120/120 total passing.
 
+## Follow-up: Test database isolation ✅
+
+Closes the known gap carried since Milestone 4. `backend/tests/conftest.py`
+now gives every test a fresh, isolated in-memory SQLite database instead
+of sharing the persistent dev file (`backend/data/careerops.db`).
+
+Two things had to be redirected, not just one - worth documenting because
+the second was a genuine bug in the first attempt at this fix:
+1. FastAPI's `get_session` dependency, overridden via the standard
+   `app.dependency_overrides` mechanism - covers every normal
+   request-handling code path.
+2. `services/job_ingestion.py`'s `ingest_jobs_background` function, which
+   does NOT go through FastAPI dependency injection at all - it opened its
+   own `Session(engine)` directly using a module-level `engine` name bound
+   at import time. `dependency_overrides` alone doesn't reach code like
+   that. Confirmed this was a real gap (not a hypothetical one) by
+   checking the actual database file after a full test run: the first
+   version of the fix left one company, one job, and one job-embedding row
+   behind - `POST /jobs/ingest`'s background path was silently still
+   writing to the real file. Fixed by having `job_ingestion.py` reference
+   `db.session.engine` dynamically (`from app.db import session as
+   db_session` + `db_session.engine`) instead of binding the name at
+   import time, so the test fixture's `monkeypatch.setattr(db_session,
+   "engine", test_engine)` actually reaches it.
+- Removed 8 duplicated per-file `client` fixtures in favor of the one in
+  `conftest.py`.
+- Verified concretely, not just asserted: ran the full suite and confirmed
+  `backend/data/careerops.db` is never even created during a test run
+  (previously it accumulated real rows).
+- 120/120 tests still passing after the change.
+
 ## Follow-up still needed
 
 - `playwright_driver.py` (Milestone 8) still has never been run against a
@@ -493,6 +524,7 @@ resume content this app produces.
   relevant to a real job search rather than built speculatively.
 - Per-page interaction polish beyond Milestone 9's shared design system.
 
+## Later / ecosystem
 
 - [ ] Plugin marketplace
 - [ ] Optional cloud sync

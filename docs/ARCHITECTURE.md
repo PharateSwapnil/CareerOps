@@ -259,8 +259,6 @@ Not yet built / known gaps (all honestly tracked, not swept under anything):
   page's own layout is still fairly plain inline-flexbox, not the
   Linear/Raycast-level polish - drag-and-drop kanban, animated
   transitions per-page - the original spec envisions)
-- Test database isolation (tests still share a persistent SQLite file
-  rather than an isolated per-run DB - flagged since Milestone 4)
 - Everything in the original spec's "Later / ecosystem" tier: plugin
   marketplace, optional cloud sync, browser extension, mobile companion,
   team/recruiter collaboration

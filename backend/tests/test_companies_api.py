@@ -1,13 +1,4 @@
 import pytest
-from fastapi.testclient import TestClient
-
-from app.main import app
-
-
-@pytest.fixture()
-def client():
-    with TestClient(app) as c:
-        yield c
 
 
 def test_job_ingestion_auto_creates_and_links_company(client):

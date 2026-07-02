@@ -9,7 +9,7 @@ import logging
 from sqlmodel import Session, select
 
 from app.core.config import get_settings
-from app.db.session import engine
+from app.db import session as db_session
 from app.models.job import Job
 from app.providers.embedding_providers.registry import get_provider as get_embedding_provider
 from app.providers.job_providers.base import JobProvider
@@ -77,7 +77,7 @@ async def ingest_jobs(
 async def ingest_jobs_background(provider: JobProvider, query: JobSearchQuery) -> None:
     """Entry point for FastAPI BackgroundTasks: opens its own DB session since
     the request-scoped session is closed by the time a background task runs."""
-    with Session(engine) as session:
+    with Session(db_session.engine) as session:
         try:
             jobs = await ingest_jobs(provider, query, session)
             logger.info(

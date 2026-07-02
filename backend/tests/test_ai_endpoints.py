@@ -1,13 +1,4 @@
 import pytest
-from fastapi.testclient import TestClient
-
-from app.main import app
-
-
-@pytest.fixture()
-def client():
-    with TestClient(app) as c:
-        yield c
 
 
 def test_ai_complete_falls_back_to_stub(client):

@@ -34,6 +34,10 @@ careerops/
 
 ## Quickstart
 
+**For full setup instructions — every environment variable, which are
+optional, where to get each API key, and step-by-step run instructions —
+see [`SETUP.md`](SETUP.md).** The short version:
+
 ### Backend
 ```bash
 cd backend
