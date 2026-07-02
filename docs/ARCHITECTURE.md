@@ -242,6 +242,13 @@ Built:
   `GET /resumes/{id}/export.pdf`) - closes the Milestone 8 gap where
   autofill was uploading raw `.txt` content to resume-upload fields most
   real ATS forms reject
+- Contact email enrichment (`providers/contact_enrichment_providers/`,
+  `POST /contacts/{id}/enrich-email`) - finds a likely professional email
+  via Hunter.io's API given a contact's name + their company's domain.
+  Built specifically as the legitimate alternative after declining a
+  request to scrape LinkedIn for personal contact info and automate
+  LinkedIn actions - see `docs/ROADMAP.md`'s "Contact email enrichment"
+  follow-up section for the full reasoning
 
 Not yet built / known gaps (all honestly tracked, not swept under anything):
 - Real auth / multi-user support (still the single-local-user shim from

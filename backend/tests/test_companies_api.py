@@ -41,6 +41,19 @@ def test_data_providers_list(client):
     assert "wikipedia" in response.json()
 
 
+def test_update_company_sets_website(client):
+    fetch_resp = client.post(
+        "/api/v1/jobs/fetch?provider_name=stub", json={"keywords": ["QA Engineer"]}
+    )
+    job = fetch_resp.json()[0]
+    companies = client.get("/api/v1/companies").json()
+    company = next(c for c in companies if c["name"] == job["company_name"])
+
+    response = client.patch(f"/api/v1/companies/{company['id']}", json={"website": "acme.com"})
+    assert response.status_code == 200
+    assert response.json()["website"] == "acme.com"
+
+
 def test_enrich_company_endpoint(client):
     """Enrichment should work end-to-end even with no external API keys
     configured: the Wikipedia lookup will fail to reach the real network in

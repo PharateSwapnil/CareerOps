@@ -115,3 +115,33 @@ def test_networking_message_endpoint_falls_back_to_stub(client):
     body = response.json()
     assert body["provider"] == "stub"
     assert len(body["content"]) > 0
+
+
+def test_contact_email_enrichment_without_key_returns_not_found(client):
+    """Without HUNTER_API_KEY configured in the test env, enrichment should
+    return found=False cleanly, not error - and shouldn't touch the
+    contact's email field."""
+    contact_resp = client.post(
+        "/api/v1/contacts", json={"full_name": "Jane Doe", "relationship": "recruiter"}
+    )
+    contact_id = contact_resp.json()["id"]
+
+    response = client.post(f"/api/v1/contacts/{contact_id}/enrich-email")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["found"] is False
+    assert body["contact"]["email"] is None
+
+
+def test_contact_email_enrichment_preserves_existing_email(client):
+    contact_resp = client.post(
+        "/api/v1/contacts",
+        json={"full_name": "Jane Doe", "relationship": "recruiter", "email": "jane@real.com"},
+    )
+    contact_id = contact_resp.json()["id"]
+
+    response = client.post(f"/api/v1/contacts/{contact_id}/enrich-email")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["found"] is True
+    assert body["contact"]["email"] == "jane@real.com"

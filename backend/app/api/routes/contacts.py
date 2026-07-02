@@ -6,8 +6,15 @@ from sqlmodel import Session, select
 from app.db.session import get_session
 from app.models.contact import Contact
 from app.models.interaction import Interaction
-from app.schemas.contact import ContactCreate, ContactRead, ContactUpdate
+from app.providers.contact_enrichment_providers.registry import get_provider
+from app.schemas.contact import (
+    ContactCreate,
+    ContactRead,
+    ContactUpdate,
+    EmailEnrichmentResponse,
+)
 from app.schemas.interaction import InteractionCreate, InteractionRead
+from app.services.contact_enrichment import enrich_contact_email
 from app.services.default_user import get_or_create_default_user
 
 router = APIRouter(prefix="/contacts", tags=["contacts"])
@@ -81,6 +88,26 @@ async def delete_contact(contact_id: int, session: Session = Depends(get_session
     contact = _get_or_404(session, contact_id)
     session.delete(contact)
     session.commit()
+
+
+@router.post("/{contact_id}/enrich-email", response_model=EmailEnrichmentResponse)
+async def enrich_email(
+    contact_id: int,
+    provider_name: str = "hunter",
+    session: Session = Depends(get_session),
+) -> EmailEnrichmentResponse:
+    """Looks up a likely professional email for this contact via a
+    third-party data provider (Hunter.io by default) - opt-in, requires
+    the user's own API key configured, and never overwrites an email the
+    user already entered. See services/contact_enrichment.py for why this
+    calls an external provider rather than scraping LinkedIn directly."""
+    contact = _get_or_404(session, contact_id)
+    provider = get_provider(provider_name)
+    result = await enrich_contact_email(session, contact, provider)
+    session.refresh(contact)
+    return EmailEnrichmentResponse(
+        contact=contact, found=result.found, confidence=result.confidence
+    )
 
 
 @router.get("/{contact_id}/interactions", response_model=list[InteractionRead])

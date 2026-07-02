@@ -39,3 +39,9 @@ class ContactRead(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class EmailEnrichmentResponse(BaseModel):
+    contact: ContactRead
+    found: bool
+    confidence: int | None = None

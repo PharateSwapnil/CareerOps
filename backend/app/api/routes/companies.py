@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
@@ -5,7 +7,7 @@ from app.db.session import get_session
 from app.models.company import Company
 from app.models.job import Job
 from app.providers.company_data_providers.registry import get_provider, list_providers
-from app.schemas.company import CompanyEnrichRequest, CompanyRead
+from app.schemas.company import CompanyEnrichRequest, CompanyRead, CompanyUpdate
 from app.schemas.job import JobRead
 from app.services.company_intelligence import enrich_company
 
@@ -32,6 +34,24 @@ async def get_data_providers() -> list[str]:
 @router.get("/{company_id}", response_model=CompanyRead)
 async def get_company(company_id: int, session: Session = Depends(get_session)) -> Company:
     return _get_or_404(session, company_id)
+
+
+@router.patch("/{company_id}", response_model=CompanyRead)
+async def update_company(
+    company_id: int, payload: CompanyUpdate, session: Session = Depends(get_session)
+) -> Company:
+    """Lets the user manually fill in details (most importantly `website`,
+    which nothing auto-populates yet) that enrichment couldn't find on its
+    own. Also needed so contact-email enrichment (services/contact_enrichment.py)
+    has a domain to work with."""
+    company = _get_or_404(session, company_id)
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(company, field, value)
+    company.updated_at = datetime.now(timezone.utc)
+    session.add(company)
+    session.commit()
+    session.refresh(company)
+    return company
 
 
 @router.get("/{company_id}/jobs", response_model=list[JobRead])

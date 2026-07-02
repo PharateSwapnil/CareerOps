@@ -97,6 +97,28 @@ Without these two, the Adzuna provider just returns an empty list instead
 of erroring — pick it from the Jobs page provider dropdown and it'll no-op
 until you add a key.
 
+### Networking contacts — finding an email, without scraping LinkedIn
+
+CareerOps++ does **not** scrape LinkedIn for contact info or automate
+LinkedIn actions (Easy Apply, connection requests) — that was explicitly
+requested during development and declined, since it violates LinkedIn's
+anti-automation terms and risks real account bans; see
+`docs/ROADMAP.md`'s "Contact email enrichment" notes for the full
+reasoning. What it does instead: given a contact's name and their
+company's website (which you enter yourself, or it gets filled in during
+company enrichment), it can look up a likely professional email via
+Hunter.io's Email Finder API — a legitimate third-party data provider, not
+an in-house scraper.
+
+| Variable | Where to get it | Free tier? |
+|---|---|---|
+| `HUNTER_API_KEY` | [hunter.io](https://hunter.io) → API | Yes, 25 free searches/month |
+
+Without this key, "Find email" on the Network page just reports nothing
+found — it never errors, and it never overwrites an email you've entered
+yourself. Only finds emails, never phone numbers or any other personal
+data.
+
 ### Semantic search — works immediately, better with a key
 
 | Variable | Default | Notes |
@@ -203,6 +225,7 @@ real `data/careerops.db` is never touched by running tests.
 | Adzuna job listings | `ADZUNA_APP_ID` + `ADZUNA_APP_KEY` |
 | Real neural semantic search | `VOYAGE_API_KEY` + `EMBEDDING_DEFAULT_PROVIDER=voyage` |
 | Wikipedia company enrichment | Just needs outbound network access — no key |
+| Contact email finder | `HUNTER_API_KEY` + the contact's company needs a `website` set |
 | Browser-assisted autofill | `playwright install chromium` (no key, but a download) |
 
 Everything else in this table has a working fallback if you skip it.

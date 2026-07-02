@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 interface Company {
   id: number;
   name: string;
+  website: string | null;
   tech_stack: string | null;
   culture_summary: string | null;
   reputation_summary: string | null;
@@ -22,6 +23,7 @@ export default function CompaniesPage() {
   const [selected, setSelected] = useState<Company | null>(null);
   const [companyJobs, setCompanyJobs] = useState<Job[]>([]);
   const [enriching, setEnriching] = useState(false);
+  const [websiteInput, setWebsiteInput] = useState("");
 
   const load = async () => {
     const res = await fetch("/api/v1/companies");
@@ -34,8 +36,23 @@ export default function CompaniesPage() {
 
   const openCompany = async (company: Company) => {
     setSelected(company);
+    setWebsiteInput(company.website ?? "");
     const res = await fetch(`/api/v1/companies/${company.id}/jobs`);
     setCompanyJobs(await res.json());
+  };
+
+  const saveWebsite = async () => {
+    if (!selected) return;
+    const res = await fetch(`/api/v1/companies/${selected.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ website: websiteInput }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setSelected(updated);
+      setCompanies((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+    }
   };
 
   const enrich = async () => {
@@ -99,6 +116,25 @@ export default function CompaniesPage() {
           <div style={{ flex: 1 }}>
             <div className="card">
               <h3 style={{ marginTop: 0 }}>{selected.name}</h3>
+
+              <div style={{ marginBottom: 10 }}>
+                <label style={{ display: "block", fontSize: 12, opacity: 0.7, marginBottom: 4 }}>
+                  Website / domain
+                </label>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <input
+                    placeholder="e.g. acme.com"
+                    value={websiteInput}
+                    onChange={(e) => setWebsiteInput(e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  <button onClick={saveWebsite}>Save</button>
+                </div>
+                <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>
+                  Needed for finding contact emails on the Network page.
+                </div>
+              </div>
+
               <button onClick={enrich} disabled={enriching}>
                 {enriching ? "Enriching..." : "Enrich with public data + AI summary"}
               </button>

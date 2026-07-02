@@ -39,6 +39,13 @@ class Settings(BaseSettings):
     embedding_default_provider: str = "hashing"
     voyage_api_key: str | None = None
 
+    # Contact enrichment (finding a professional email for a networking
+    # contact given their name + company domain). Optional, opt-in - never
+    # scrapes LinkedIn or any social platform; uses Hunter.io's own Email
+    # Finder API, a legitimate third-party data provider with its own
+    # compliance posture, not something CareerOps++ scrapes itself.
+    hunter_api_key: str | None = None
+
     cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
 
     # Order in which the LLM fallback orchestrator (Milestone 3) tries

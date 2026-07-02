@@ -22,3 +22,10 @@ class CompanyRead(BaseModel):
 
 class CompanyEnrichRequest(BaseModel):
     data_provider_name: str = "wikipedia"
+
+
+class CompanyUpdate(BaseModel):
+    website: str | None = None
+    size: str | None = None
+    funding_stage: str | None = None
+    industry: str | None = None

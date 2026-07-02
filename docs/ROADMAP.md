@@ -482,7 +482,70 @@ resume content this app produces.
   non-empty bytes) + 2 for `profile_builder` generating a real `.pdf` file
   + 1 API test, 120/120 total passing.
 
-## Follow-up: Test database isolation ✅
+## Follow-up: Contact email enrichment (and a declined LinkedIn feature) ✅
+
+Requested: LinkedIn Easy Apply automation (via Selenium, referencing
+`Cimerherd/auto-apply-bot` and `GodsScion/Auto_job_applier_linkedIn`), plus
+scraping LinkedIn's People section for HR/Talent Acquisition contacts'
+emails and phone numbers, storing them, and auto-sending LinkedIn
+connection requests.
+
+**Declined, and nothing in the existing codebase was touched while
+deciding this.** Two distinct problems, not one:
+
+1. **LinkedIn Easy Apply automation** is a different risk category than
+   the Greenhouse/Lever forms Milestone 8 already automates - those are
+   standalone hosted application pages, not gated behind a social
+   platform's account. LinkedIn's User Agreement explicitly prohibits bots
+   or automated methods to access the Services, and automated Easy Apply
+   tools are one of the most actively detected/banned patterns on the
+   platform. This is the same "Tier 3" line drawn earlier in this project
+   (see the Milestone 2 job-source backlog notes above) for LinkedIn,
+   Naukri, Indeed, FlexJobs, and VirtualVocations - the existence of
+   reference repos that do this doesn't change the assessment; the risk
+   isn't "can this be written," it's that running it risks the user's real
+   account.
+2. **Scraping personal emails/phone numbers off LinkedIn "like Apollo.ai"**
+   is a bigger problem than the automation angle alone. LinkedIn doesn't
+   actually expose personal contact info on profiles - services like
+   Apollo/Hunter get that data by aggregating many other sources under
+   their own compliance frameworks, which is a data-broker business, not a
+   scraping script. Collecting a real person's private contact info
+   without their knowledge for outreach purposes also starts touching
+   privacy regulation (GDPR/CCPA-style rules) depending on jurisdiction -
+   a materially different risk than a ToS violation. Auto-sending
+   connection requests at volume is the spam-bot pattern LinkedIn's
+   anti-automation enforcement specifically targets.
+
+**Built instead:** `providers/contact_enrichment_providers/hunter_provider.py`
+- a `ContactEnrichmentProvider` plugin (same pattern as job/LLM/embedding/
+company-data providers) that calls Hunter.io's Email Finder API with the
+user's own key. This keeps CareerOps++ out of the business of harvesting
+personal data itself - Hunter does that aggregation under its own terms,
+CareerOps++ just calls their API.
+
+- `services/contact_enrichment.py`: splits a Contact's name, looks up
+  their linked Company's `website` domain, calls the provider. Deliberately
+  **never overwrites an email the user already entered** - enrichment only
+  fills a gap. Returns "not found" cleanly (not an error) when there's no
+  key configured, no linked company, or no website set on that company -
+  same degrade-gracefully pattern as Adzuna/Voyage/Wikipedia.
+- New endpoint: `POST /contacts/{id}/enrich-email`.
+- New endpoint: `PATCH /companies/{id}` (was missing - nothing previously
+  let a user manually set a company's `website`, which is needed both for
+  this feature and just generally useful).
+- Only ever looks up an email. No phone numbers, no other personal data,
+  no connection requests, no automation of any social platform.
+- Frontend: "Find email" button on the Network page's contact detail panel
+  (only shown when the contact doesn't already have an email); a website
+  field with Save button on the Companies page detail panel.
+- Tests: 3 (Hunter provider found/not-found/no-key) + 8 (enrichment
+  service: domain extraction, name splitting, the never-overwrite
+  guarantee, missing-company/missing-website cases) + 3 (API-level,
+  including one that explicitly asserts an existing email is never
+  clobbered) + 1 (company PATCH) = 15 new, 135/135 total passing.
+
+
 
 Closes the known gap carried since Milestone 4. `backend/tests/conftest.py`
 now gives every test a fresh, isolated in-memory SQLite database instead

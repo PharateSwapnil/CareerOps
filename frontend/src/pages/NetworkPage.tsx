@@ -43,6 +43,8 @@ export default function NetworkPage() {
   const [msgPurpose, setMsgPurpose] = useState("");
   const [msgResult, setMsgResult] = useState("");
   const [msgLoading, setMsgLoading] = useState(false);
+  const [findingEmail, setFindingEmail] = useState(false);
+  const [emailLookupMessage, setEmailLookupMessage] = useState("");
 
   const loadContacts = async () => {
     const res = await fetch("/api/v1/contacts");
@@ -81,11 +83,36 @@ export default function NetworkPage() {
   const openContact = async (contact: Contact) => {
     setSelectedId(contact.id);
     setMsgResult("");
+    setEmailLookupMessage("");
     const res = await fetch(`/api/v1/contacts/${contact.id}/interactions`);
     setInteractions(await res.json());
   };
 
   const selectedContact = contacts.find((c) => c.id === selectedId) ?? null;
+
+  const findEmail = async () => {
+    if (!selectedContact) return;
+    setFindingEmail(true);
+    setEmailLookupMessage("");
+    try {
+      const res = await fetch(`/api/v1/contacts/${selectedContact.id}/enrich-email`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (data.found) {
+        setEmailLookupMessage(
+          data.confidence ? `Found (${data.confidence}% confidence)` : "Found"
+        );
+        loadContacts();
+      } else {
+        setEmailLookupMessage(
+          "Not found — make sure this contact has a linked company with a website set, and that HUNTER_API_KEY is configured."
+        );
+      }
+    } finally {
+      setFindingEmail(false);
+    }
+  };
 
   const logInteraction = async () => {
     if (!selectedId || !interactionSummary) return;
@@ -222,6 +249,26 @@ export default function NetworkPage() {
           <div style={{ flex: 1 }}>
             <div className="card">
               <h3 style={{ marginTop: 0 }}>{selectedContact.full_name}</h3>
+
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12, opacity: 0.7 }}>
+                  Email: {selectedContact.email ?? "not known"}
+                </div>
+                {!selectedContact.email && (
+                  <button
+                    style={{ fontSize: 12, marginTop: 6 }}
+                    onClick={findEmail}
+                    disabled={findingEmail}
+                  >
+                    {findingEmail ? "Looking..." : "Find email"}
+                  </button>
+                )}
+                {emailLookupMessage && (
+                  <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>
+                    {emailLookupMessage}
+                  </div>
+                )}
+              </div>
 
               <h4>Set follow-up</h4>
               <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
