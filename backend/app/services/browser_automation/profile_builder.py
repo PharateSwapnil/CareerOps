@@ -2,14 +2,13 @@
 form, from data the user already has in CareerOps++ (never fetched or
 invented elsewhere).
 
-KNOWN GAP: resumes in this app are stored as plain text/markdown
-(`Resume.content` - see Milestone 4), and there's no PDF/DOCX rendering
-pipeline yet. Most ATS resume-upload fields expect a PDF or Word document,
-not a .txt file, so writing the raw text to a temp file and uploading it
-will often be rejected by the real form. This is flagged here rather than
-silently shipped as if it worked - a resume export pipeline (Milestone 4
-follow-up, or part of a docx-export feature) is a prerequisite for this
-part of Milestone 8 to be genuinely useful, not just structurally complete.
+Resume handling: renders the resume's stored content to a real PDF via
+services/resume_export.py and writes it to a temp file for upload. This
+used to write raw markdown/plain text to a .txt file, which most ATS
+resume-upload fields reject outright - closed as part of Milestone 8
+follow-up work. The PDF is plain/unstyled (see resume_export.py's
+docstring) - readable and acceptable to upload fields, but not a designed
+resume template.
 """
 import tempfile
 
@@ -19,6 +18,7 @@ from app.models.application import Application
 from app.models.resume import Resume
 from app.models.user import User
 from app.services.browser_automation.field_classifier import ApplicantProfile
+from app.services.resume_export import render_resume_pdf
 
 
 def build_applicant_profile(session: Session, application: Application) -> ApplicantProfile:
@@ -31,12 +31,11 @@ def build_applicant_profile(session: Session, application: Application) -> Appli
     if application.resume_id:
         resume = session.get(Resume, application.resume_id)
         if resume is not None:
-            # See module docstring: this is a .txt file, not a real
-            # resume document format most ATS forms expect.
+            pdf_bytes = render_resume_pdf(resume.label, resume.content)
             tmp = tempfile.NamedTemporaryFile(
-                mode="w", suffix=".txt", delete=False, prefix="careerops_resume_"
+                mode="wb", suffix=".pdf", delete=False, prefix="careerops_resume_"
             )
-            tmp.write(resume.content)
+            tmp.write(pdf_bytes)
             tmp.close()
             resume_file_path = tmp.name
 

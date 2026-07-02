@@ -116,10 +116,13 @@ export default function ResumesPage() {
       {resumes.map((r) => (
         <div className="card" key={r.id}>
           <strong>{r.label}</strong> (v{r.version_number})
-          <div style={{ marginTop: 8 }}>
+          <div style={{ marginTop: 8, display: "flex", gap: 6 }}>
             <button style={{ fontSize: 12 }} onClick={() => openHistory(r.id)}>
               View history
             </button>
+            <a href={`/api/v1/resumes/${r.id}/export.pdf`} download>
+              <button style={{ fontSize: 12 }}>Download PDF</button>
+            </a>
           </div>
         </div>
       ))}
@@ -156,6 +159,9 @@ export default function ResumesPage() {
                 <button style={{ fontSize: 12 }} onClick={() => rollback(v.id)}>
                   Roll back to this
                 </button>
+                <a href={`/api/v1/resumes/${v.id}/export.pdf`} download>
+                  <button style={{ fontSize: 12 }}>PDF</button>
+                </a>
               </div>
             </div>
           ))}

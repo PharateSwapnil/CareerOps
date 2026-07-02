@@ -389,14 +389,11 @@ detection logic in `_detect_fields` (matching an `<input>` to its
 `<label>`) is the part most likely to need real-world tuning per ATS
 platform.
 
-**Known gap:** resumes in this app are stored as plain text/markdown
-(`Resume.content`), and there's no PDF/DOCX export pipeline. Most ATS
-resume-upload fields expect a real document format, not a `.txt` file -
-`profile_builder.py` writes the raw text to a temp `.txt` file for upload,
-which many real forms will reject. A resume-to-PDF export feature is a
-prerequisite for this part of the milestone to be genuinely useful, not
-just structurally complete - flagged rather than silently shipped as if
-solved.
+**Known gap, later closed:** resumes in this app are stored as plain
+text/markdown (`Resume.content`), and at the time this milestone shipped
+there was no PDF/DOCX export pipeline - `profile_builder.py` wrote raw
+text to a temp `.txt` file, which most real ATS resume-upload fields
+reject. **Fixed in a follow-up pass** - see "Resume PDF export" below.
 
 **What was added along the way:**
 - `User` gained `phone`, `linkedin_url`, `portfolio_url` fields - needed
@@ -462,7 +459,41 @@ Notes:
   That's a reasonable next increment, not claimed as done here.
 - Frontend production build (`npm run build`) verified clean.
 
-## Later / ecosystem
+## Follow-up: Resume PDF export ✅
+
+Closes the known gap from Milestone 8 above. `services/resume_export.py`
+renders a Resume's stored markdown-lite content into a real PDF via
+`reportlab` - a simple line-based parser (`# `/`## ` headings, `- `/`* `
+bullets, `**bold**`/`*italic*` inline styles, blank-line paragraph breaks),
+not a full CommonMark implementation, but sufficient for the AI-generated
+resume content this app produces.
+
+- New endpoint: `GET /resumes/{id}/export.pdf` - downloads any resume
+  version as a PDF, with a proper `Content-Disposition` header.
+- `services/browser_automation/profile_builder.py` now generates a real
+  PDF for autofill's resume-upload field instead of a `.txt` file.
+- Explicitly NOT a resume template/design system - output is plain,
+  readable, single-column. A real "resume builder" with visual templates
+  is a separate, larger feature than this fix attempts to be.
+- Tests: 5 for the export function itself (including a real check that
+  `<`, `>`, `&` in resume content don't break reportlab's XML-based
+  Paragraph parser - verified by actually parsing the output PDF with
+  `pypdf` and checking the extracted text, not just checking for
+  non-empty bytes) + 2 for `profile_builder` generating a real `.pdf` file
+  + 1 API test, 120/120 total passing.
+
+## Follow-up still needed
+
+- `playwright_driver.py` (Milestone 8) still has never been run against a
+  real browser - this dev sandbox can't download the Chromium binary from
+  `cdn.playwright.dev`. Manually verify against a real Greenhouse or Lever
+  application form before trusting it.
+- Real auth / multi-user support, replacing the single-local-user shim.
+- Job sources from the backlog below, picked based on what's actually
+  relevant to a real job search rather than built speculatively.
+- Per-page interaction polish beyond Milestone 9's shared design system.
+
+
 - [ ] Plugin marketplace
 - [ ] Optional cloud sync
 - [ ] Browser extension, mobile companion

@@ -120,7 +120,17 @@ def test_resume_create_and_versioning_flow(client):
     assert rolled_back["version_number"] == 3
 
 
-def test_resume_list_returns_only_latest_versions(client):
+def test_resume_pdf_export(client):
+    create_resp = client.post(
+        "/api/v1/resumes", json={"label": "Base resume", "content": "Senior Engineer\n\n- Built APIs"}
+    )
+    resume_id = create_resp.json()["id"]
+
+    response = client.get(f"/api/v1/resumes/{resume_id}/export.pdf")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.content[:4] == b"%PDF"
+    assert "attachment" in response.headers["content-disposition"]
     create_resp = client.post(
         "/api/v1/resumes", json={"label": "Chain A", "content": "a-v1"}
     )

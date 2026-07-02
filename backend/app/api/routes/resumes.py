@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from sqlmodel import Session, select
 
 from app.db.session import get_session
 from app.models.resume import Resume
 from app.schemas.resume import ResumeCreate, ResumeDiff, ResumeRead
 from app.services.default_user import get_or_create_default_user
+from app.services.resume_export import render_resume_pdf
 from app.services.resume_versioning import (
     ResumeNotFoundError,
     create_new_version,
@@ -59,6 +61,22 @@ async def create_resume(
 @router.get("/{resume_id}", response_model=ResumeRead)
 async def get_resume(resume_id: int, session: Session = Depends(get_session)) -> Resume:
     return _get_or_404(session, resume_id)
+
+
+@router.get("/{resume_id}/export.pdf")
+async def export_resume_pdf(resume_id: int, session: Session = Depends(get_session)) -> Response:
+    """Renders this resume version as a real PDF document, for downloading
+    or for the browser-assisted application autofill (Milestone 8) to
+    upload to a resume-upload field - closing the gap where autofill was
+    uploading raw .txt content, which most ATS forms reject."""
+    resume = _get_or_404(session, resume_id)
+    pdf_bytes = render_resume_pdf(resume.label, resume.content)
+    filename = f"{resume.label.replace(' ', '_')}_v{resume.version_number}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.post("/{resume_id}/versions", response_model=ResumeRead, status_code=201)

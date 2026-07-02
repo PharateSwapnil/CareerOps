@@ -238,13 +238,14 @@ Built:
   pipeline view, Jobs (fetch/semantic search/similar roles), Saved
   Searches, Companies, Applications (+ AI assist), Resumes (versioning UI),
   Network (CRM + follow-ups + AI drafting)
+- Resume PDF export (`services/resume_export.py`,
+  `GET /resumes/{id}/export.pdf`) - closes the Milestone 8 gap where
+  autofill was uploading raw `.txt` content to resume-upload fields most
+  real ATS forms reject
 
 Not yet built / known gaps (all honestly tracked, not swept under anything):
 - Real auth / multi-user support (still the single-local-user shim from
   Milestone 4)
-- A resume-to-PDF/DOCX export pipeline - without it, Milestone 8's
-  autofill uploads a `.txt` file to resume-upload fields, which many real
-  ATS forms will reject
 - `playwright_driver.py` (Milestone 8) has never been run against a real
   browser or a real application form - this dev sandbox can't download the
   Chromium binary. Verify manually before relying on it.
@@ -271,23 +272,22 @@ Each of these is tracked in `docs/ROADMAP.md`.
 If you're picking this up in a new conversation: read this file and
 `docs/ROADMAP.md` first, then run `git log --oneline` to see what's landed.
 
-All 9 core milestones are now complete. There is no more "next milestone"
-for the old resume prompt to point to - work from here should be scoped to
-one of the tracked gaps instead (see section 7 above and the "Known gap" /
-"Not yet built" notes throughout `ROADMAP.md`), roughly in priority order
-for actually using this tool day-to-day:
+All 9 core milestones are now complete, and the resume-PDF-export gap
+flagged when Milestone 8 shipped has since been closed (see
+`docs/ROADMAP.md`'s "Follow-up: Resume PDF export" section). There is no
+more "next milestone" for the old resume prompt to point to - work from
+here should be scoped to one of the tracked gaps instead (see section 7
+above and `docs/ROADMAP.md`'s "Follow-up still needed" section), roughly
+in priority order for actually using this tool day-to-day:
 
-1. A resume-to-PDF/DOCX export pipeline - Milestone 8's autofill is
-   structurally complete but not genuinely useful until resumes can be
-   uploaded as real documents, not `.txt` files.
-2. Manually verify `playwright_driver.py` against a real browser and a
+1. Manually verify `playwright_driver.py` against a real browser and a
    real Greenhouse/Lever application form - it was never executable in the
    dev sandbox it was written in.
-3. Real auth / multi-user support, replacing the single-local-user shim.
-4. Whichever job sources from the `docs/ROADMAP.md` backlog are actually
+2. Real auth / multi-user support, replacing the single-local-user shim.
+3. Whichever job sources from the `docs/ROADMAP.md` backlog are actually
    relevant to the person's own job search - don't build the whole list
    speculatively.
-5. Per-page interaction polish (Milestone 9 built the shared design system;
+4. Per-page interaction polish (Milestone 9 built the shared design system;
    individual pages could still use real layout work).
 
 A reasonable resume prompt now: "Read ARCHITECTURE.md and ROADMAP.md, then
