@@ -200,7 +200,7 @@ export default function NetworkPage() {
               key={c.id}
               style={{
                 cursor: "pointer",
-                border: selectedId === c.id ? "1px solid #4a90e2" : undefined,
+                border: selectedId === c.id ? "1px solid var(--accent)" : undefined,
               }}
               onClick={() => openContact(c)}
             >
@@ -250,7 +250,7 @@ export default function NetworkPage() {
               <h4>History</h4>
               {interactions.length === 0 && <p style={{ fontSize: 13, opacity: 0.7 }}>No interactions logged yet.</p>}
               {interactions.map((i) => (
-                <div key={i.id} style={{ fontSize: 13, marginBottom: 8, borderBottom: "1px solid #1f232b", paddingBottom: 8 }}>
+                <div key={i.id} style={{ fontSize: 13, marginBottom: 8, borderBottom: "1px solid var(--border)", paddingBottom: 8 }}>
                   <div style={{ opacity: 0.6, fontSize: 11 }}>
                     {i.type} · {new Date(i.occurred_at).toLocaleString()}
                   </div>

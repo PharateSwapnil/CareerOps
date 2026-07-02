@@ -171,14 +171,20 @@ backend/app/
 
 ## 6. Frontend layout
 
-Vite + React + TypeScript. Routing via `react-router`; pages are functional
-across all shipped milestones (Dashboard, Jobs, Saved Searches, Companies,
-Applications, Resumes, Network) but styled with plain inline CSS rather
-than a real design system - the "Linear/Raycast/Vercel/Notion-inspired"
-visual polish described in the original spec is explicitly deferred to
-Milestone 9 (see `ROADMAP.md`), not attempted piecemeal per-milestone.
+Vite + React + TypeScript. Routing via `react-router`. A real design token
+system (`src/index.css`, dark/light via `data-theme` + CSS custom
+properties) and a functional command palette (`src/components/CommandPalette.tsx`,
+⌘K) landed in Milestone 9. Each page's own internal layout is still fairly
+plain inline-flexbox - functional across every shipped milestone (Dashboard,
+Jobs, Saved Searches, Companies, Applications, Resumes, Network, Profile),
+but not yet a full per-page interaction redesign (drag-and-drop kanban,
+animated transitions, etc.) - see `ROADMAP.md` Milestone 9 notes for
+exactly what was and wasn't done in that pass.
 
-## 7. What's built vs. not yet (as of Milestone 7)
+## 7. What's built vs. not yet (as of Milestone 9)
+
+All 9 core milestones from the original roadmap are now built (see
+`docs/ROADMAP.md` for full details and honesty notes on each). Summary:
 
 Built:
 - Ten real job-provider integrations: Greenhouse, Arbeitnow, Remotive,
@@ -215,37 +221,79 @@ Built:
   pluggable `CompanyDataProvider` (Wikipedia) for external public data;
   AI-generated culture/reputation summaries grounded in those signals, with
   `salary_insights` deliberately left ungenerated rather than hallucinated
+- Browser-assisted applications: pure, fully-tested field-classification
+  logic (`services/browser_automation/field_classifier.py`) decides what
+  to autofill and when to pause, kept separate from the actual Playwright-
+  driving code (`playwright_driver.py`, not live-tested in this sandbox -
+  see ROADMAP.md). Hard safety rules: headed-only, never solves CAPTCHAs,
+  never authenticates, never clicks Submit - the human always does that
+  final step themselves. `ApplicationAutomationSession` is a durable audit
+  log; the live browser handle is process-local.
+- A real design token system (dark/light, `frontend/src/index.css`), a
+  functional command palette (⌘K), single-key navigation shortcuts, and
+  restrained/reduced-motion-respecting animation - see ROADMAP.md
+  Milestone 9 for the specific palette/type choices and what's still
+  deferred (full per-page interaction redesign)
 - A real (if plainly styled) frontend across all of the above: Dashboard
   pipeline view, Jobs (fetch/semantic search/similar roles), Saved
   Searches, Companies, Applications (+ AI assist), Resumes (versioning UI),
   Network (CRM + follow-ups + AI drafting)
 
-Not yet built:
-- Browser-assisted applications (Playwright-based autofill) - Milestone 8
-- Premium UX pass (command palette, keyboard shortcuts, dark/light mode,
-  real design system) - Milestone 9; current UI is functional, plainly
-  styled inline CSS, not the "Linear/Raycast/Vercel/Notion-inspired"
-  polish described in the original spec
-- Real auth / multi-user support (still the single-local-user shim)
+Not yet built / known gaps (all honestly tracked, not swept under anything):
+- Real auth / multi-user support (still the single-local-user shim from
+  Milestone 4)
+- A resume-to-PDF/DOCX export pipeline - without it, Milestone 8's
+  autofill uploads a `.txt` file to resume-upload fields, which many real
+  ATS forms will reject
+- `playwright_driver.py` (Milestone 8) has never been run against a real
+  browser or a real application form - this dev sandbox can't download the
+  Chromium binary. Verify manually before relying on it.
 - Most of the job-source backlog cataloged in `docs/ROADMAP.md` (Himalayas,
   Workable, Recruitee, Personio, Reed, Jooble, Careerjet, USAJobs, and most
   of the requested HTML-scraping tier)
-- A real salary/compensation data source (so `Company.salary_insights` can
-  finally be populated with real numbers instead of staying null)
+- A real salary/compensation data source (`Company.salary_insights` stays
+  null rather than AI-hallucinated)
+- Full per-page UI/interaction redesign (Milestone 9 built the shared
+  design system - tokens, command palette, theme switching - but each
+  page's own layout is still fairly plain inline-flexbox, not the
+  Linear/Raycast-level polish - drag-and-drop kanban, animated
+  transitions per-page - the original spec envisions)
 - Test database isolation (tests still share a persistent SQLite file
-  rather than an isolated per-run DB - flagged since Milestone 4, not yet
-  fixed)
+  rather than an isolated per-run DB - flagged since Milestone 4)
+- Everything in the original spec's "Later / ecosystem" tier: plugin
+  marketplace, optional cloud sync, browser extension, mobile companion,
+  team/recruiter collaboration
 
 Each of these is tracked in `docs/ROADMAP.md`.
 
 ## 8. For a future Claude session
 
 If you're picking this up in a new conversation: read this file and
-`docs/ROADMAP.md` first, then run `git log --oneline` to see what's landed. The
-standard prompt to resume work is:
+`docs/ROADMAP.md` first, then run `git log --oneline` to see what's landed.
 
-> "Analyze the current codebase and implement the next milestone according to the
-> architecture document."
+All 9 core milestones are now complete. There is no more "next milestone"
+for the old resume prompt to point to - work from here should be scoped to
+one of the tracked gaps instead (see section 7 above and the "Known gap" /
+"Not yet built" notes throughout `ROADMAP.md`), roughly in priority order
+for actually using this tool day-to-day:
+
+1. A resume-to-PDF/DOCX export pipeline - Milestone 8's autofill is
+   structurally complete but not genuinely useful until resumes can be
+   uploaded as real documents, not `.txt` files.
+2. Manually verify `playwright_driver.py` against a real browser and a
+   real Greenhouse/Lever application form - it was never executable in the
+   dev sandbox it was written in.
+3. Real auth / multi-user support, replacing the single-local-user shim.
+4. Whichever job sources from the `docs/ROADMAP.md` backlog are actually
+   relevant to the person's own job search - don't build the whole list
+   speculatively.
+5. Per-page interaction polish (Milestone 9 built the shared design system;
+   individual pages could still use real layout work).
+
+A reasonable resume prompt now: "Read ARCHITECTURE.md and ROADMAP.md, then
+work on [specific gap from the list above]." Pick one at a time rather than
+attempting several in one session - that's been the pattern that's kept
+each milestone reviewable.
 
 Please update this document whenever you make a decision that changes the shape
 described here — it's meant to stay accurate, not aspirational.

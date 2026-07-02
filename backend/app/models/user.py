@@ -22,5 +22,12 @@ class User(SQLModel, table=True):
     career_goals: str | None = None
     preferences: str | None = None  # JSON-encoded string
 
+    # Added in Milestone 8 for browser-assisted application autofill -
+    # these are the only fields BrowserAutomationSession is allowed to type
+    # into a real application form (see field_classifier.ApplicantProfile).
+    phone: str | None = None
+    linkedin_url: str | None = None
+    portfolio_url: str | None = None
+
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)

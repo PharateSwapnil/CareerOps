@@ -7,6 +7,7 @@ from app.models.application import Application, ApplicationStatus
 from app.models.contact import Contact, ContactRelationship
 from app.models.interaction import Interaction
 from app.models.saved_search import SavedSearch
+from app.models.automation_session import ApplicationAutomationSession, AutomationStatus
 
 __all__ = [
     "User",
@@ -20,4 +21,6 @@ __all__ = [
     "ContactRelationship",
     "Interaction",
     "SavedSearch",
+    "ApplicationAutomationSession",
+    "AutomationStatus",
 ]

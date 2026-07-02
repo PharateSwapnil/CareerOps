@@ -132,7 +132,7 @@ export default function ResumesPage() {
               key={v.id}
               style={{
                 padding: 8,
-                borderBottom: "1px solid #1f232b",
+                borderBottom: "1px solid var(--border)",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
@@ -164,7 +164,7 @@ export default function ResumesPage() {
             <pre
               style={{
                 whiteSpace: "pre-wrap",
-                background: "#0b0d12",
+                background: "var(--bg)",
                 padding: 12,
                 borderRadius: 6,
                 marginTop: 12,

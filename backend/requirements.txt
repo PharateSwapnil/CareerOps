@@ -7,6 +7,12 @@ httpx>=0.27,<1.0
 beautifulsoup4>=4.12,<5.0
 python-dotenv>=1.0,<2.0
 
+# Optional, heavy dependency for Milestone 8 (browser-assisted applications).
+# After installing, run `playwright install chromium` to download the
+# actual browser binary - a separate ~150-300MB download not covered by
+# pip install. The rest of the app works fine without this.
+playwright>=1.47,<2.0
+
 # dev / test
 pytest>=8.3,<9.0
 pytest-asyncio>=0.24,<1.0

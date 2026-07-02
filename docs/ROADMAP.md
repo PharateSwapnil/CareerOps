@@ -341,12 +341,126 @@ Notes:
   enrichment's graceful degradation when public data isn't found, full API
   flows), 88/88 total passing. Frontend typechecks clean.
 
-## Milestone 8 — Browser-assisted applications
-- [ ] Playwright integration for autofill on supported ATS platforms
-- [ ] Human-in-the-loop pause points (auth, CAPTCHA, ambiguous fields)
+## Milestone 8 — Browser-assisted applications ✅
+- [x] Playwright integration for autofill on supported ATS platforms
+- [x] Human-in-the-loop pause points (auth, CAPTCHA, ambiguous fields)
 
-## Milestone 9 — Premium UX pass
-- [ ] Command palette, keyboard shortcuts, dark/light mode, animations
+**Safety design (non-negotiable, not just documentation):**
+- Always launches headed (visible), never headless - the user watches
+  everything in real time on their own screen.
+- Never attempts to solve a CAPTCHA - any CAPTCHA detected halts the
+  session immediately.
+- Never fills a password field or attempts authentication - any password
+  input detected halts the session immediately, even if disguised by a
+  confusing label (tested explicitly).
+- **Never clicks the final Submit/Apply button, ever.** Once the form is
+  filled as far as it safely can be, the session stops at
+  `AWAITING_SUBMIT` - the human reviews and clicks Submit themselves in the
+  real browser window. This is the mandatory last step of every session,
+  not a fallback for edge cases.
+- Only fills values the user already entered into their own CareerOps++
+  profile/resume - nothing fetched from elsewhere, nothing invented.
+- Defaults to NOT filling: an unrecognized required field pauses rather
+  than guessing, since a wrong guess put into a real application is a much
+  worse failure than an extra click to resume.
+
+**Architecture:** the decision logic (which field is which, when to pause)
+lives in `services/browser_automation/field_classifier.py` as pure
+functions with zero Playwright dependency - fully unit-tested (16 tests,
+including explicit safety-guard tests like "a password field is never
+filled even if its label says something else"). The actual browser-driving
+code (`playwright_driver.py`) calls into that logic but does the I/O
+(`page.fill()`, `page.goto()`, etc.) itself.
+
+**NOT LIVE-VERIFIED - said plainly, not glossed over:** `playwright_driver.py`
+could not be executed end-to-end in this dev sandbox. `pip install
+playwright` succeeds, but `playwright install chromium` (a ~150-300MB
+browser binary download from `cdn.playwright.dev`) failed - that host isn't
+in the sandbox's network egress allowlist, same category of limitation as
+Voyage/Wikipedia earlier in this project. What IS verified: the API layer's
+handling of a genuinely missing browser is tested against the real failure
+(not a mock) - `POST /automation/sessions` correctly returns 503 with a
+clear "run `playwright install chromium`" message and records an `error`
+status in the audit log, because that's exactly what happens when this
+runs in an environment without the browser binary installed.
+**Before relying on this for a real application, manually verify it
+against a live Greenhouse or Lever application form** - the field-label
+detection logic in `_detect_fields` (matching an `<input>` to its
+`<label>`) is the part most likely to need real-world tuning per ATS
+platform.
+
+**Known gap:** resumes in this app are stored as plain text/markdown
+(`Resume.content`), and there's no PDF/DOCX export pipeline. Most ATS
+resume-upload fields expect a real document format, not a `.txt` file -
+`profile_builder.py` writes the raw text to a temp `.txt` file for upload,
+which many real forms will reject. A resume-to-PDF export feature is a
+prerequisite for this part of the milestone to be genuinely useful, not
+just structurally complete - flagged rather than silently shipped as if
+solved.
+
+**What was added along the way:**
+- `User` gained `phone`, `linkedin_url`, `portfolio_url` fields - needed
+  for autofill to have real data to work with. New `GET/PATCH /me`
+  endpoints and a Profile page expose them.
+- `ApplicationAutomationSession` model is a durable audit log (status,
+  pause reason, filled-fields transparency log) - the live Playwright
+  handle itself is process-local (in-memory registry in
+  `session_manager.py`), so it can't survive a server restart; the DB row
+  is what persists.
+- Frontend: Dashboard's kanban cards gained an "Auto-fill application"
+  button and inline status/pause/resume/close controls, with an explicit
+  note whenever the browser genuinely isn't available.
+- Tests: 16 (field classifier/fill-plan logic, including safety-critical
+  cases) + 6 (automation API, exercising the real missing-browser path) +
+  3 (profile endpoints) = 25 new, 113/113 total passing.
+
+## Milestone 9 — Premium UX pass ✅
+- [x] Command palette, keyboard shortcuts, dark/light mode, animations
+
+Notes:
+- Built a real design token system (`frontend/src/index.css`) rather than
+  the generic AI-UI defaults - not cream+terracotta, not near-black+acid-
+  green. Palette: deep indigo-violet accent (`#6C63FF` dark / `#5750E0`
+  light) + warm amber for in-progress/momentum states, on a blue-tinted
+  near-black (dark) or off-white (light) base. Type: Space Grotesk for
+  headers (geometric character), IBM Plex Sans for body, IBM Plex Mono for
+  data/shortcuts - a deliberately different pairing from the Inter-
+  everywhere look most generated UIs reach for, and one with real
+  developer-tool associations that fit "the VS Code of job hunting"
+  positioning from the original spec.
+- **Command palette (⌘K)** is the signature element - genuinely functional
+  keyboard-driven navigation across every page
+  (`components/CommandPalette.tsx`), not a decorative modal. Fuzzy-filters
+  as you type, arrow-key navigable, Enter to go.
+- Single-key "go to" shortcuts (`d`/`j`/`a`/`r`/`n`/`c`) for the most
+  common destinations, disabled while typing in any input/textarea so they
+  never fight with normal form use.
+- Dark/light mode via a `data-theme` attribute + CSS custom properties,
+  persisted to `localStorage`, defaulting to the OS preference
+  (`prefers-color-scheme`) on first visit.
+- Kanban cards on the Dashboard get a left-border color coded by pipeline
+  stage (`.stage-saved`, `.stage-applied`, etc.) - a structural device that
+  encodes real state, following the frontend-design skill's guidance that
+  structure should mean something rather than decorate.
+- Motion is deliberately restrained: palette open/close fade+scale,
+  button/card hover transitions, nothing ambient or attention-grabbing -
+  and `prefers-reduced-motion` is respected globally (all animation/
+  transition durations collapse to ~0 for users who've asked for that).
+- Visible keyboard focus (`:focus-visible` outline) on every interactive
+  element, per the skill's "quality floor" requirement.
+- Every hardcoded hex color found across the existing pages was migrated
+  to reference the token system, so theme switching actually applies
+  everywhere rather than leaving stray hardcoded-dark-mode colors behind
+  in light mode.
+- **Scope note:** this pass touched the shared shell (colors, type,
+  buttons/inputs/cards globally, the palette, the theme toggle) and fixed
+  color-token usage across every page. It did NOT do a full per-page
+  layout/interaction redesign of each of the 8 pages - that's still fairly
+  utilitarian inline-flexbox layout, functional but not the
+  Linear/Raycast/Vercel/Notion-level interaction polish (drag-and-drop
+  kanban, animated list reordering, etc.) the original spec envisions.
+  That's a reasonable next increment, not claimed as done here.
+- Frontend production build (`npm run build`) verified clean.
 
 ## Later / ecosystem
 - [ ] Plugin marketplace

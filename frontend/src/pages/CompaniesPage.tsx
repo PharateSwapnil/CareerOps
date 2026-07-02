@@ -76,7 +76,7 @@ export default function CompaniesPage() {
               key={c.id}
               style={{
                 cursor: "pointer",
-                border: selected?.id === c.id ? "1px solid #4a90e2" : undefined,
+                border: selected?.id === c.id ? "1px solid var(--accent)" : undefined,
               }}
               onClick={() => openCompany(c)}
             >

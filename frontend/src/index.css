@@ -1,18 +1,99 @@
-:root {
-  color-scheme: light dark;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+/* ---------------------------------------------------------------------
+   CareerOps++ design tokens.
+
+   Palette, type, and motion choices are deliberate (see docs/ROADMAP.md
+   Milestone 9 notes for the rationale) - not the generic cream+terracotta
+   or near-black+acid-green defaults that generated UIs cluster around.
+   --------------------------------------------------------------------- */
+
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap");
+
+:root,
+[data-theme="dark"] {
+  --bg: #0b0d14;
+  --surface: #131620;
+  --surface-2: #1b1f2e;
+  --surface-3: #242a3d;
+  --border: #262b3d;
+  --text: #e7e9f0;
+  --text-muted: #9ba1b5;
+  --accent: #6c63ff;
+  --accent-hover: #8079ff;
+  --accent-2: #f5a623;
+  --success: #34d399;
+  --danger: #f87171;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="light"] {
+  --bg: #fafafc;
+  --surface: #ffffff;
+  --surface-2: #f1f2f6;
+  --surface-3: #e8e9f0;
+  --border: #e0e2eb;
+  --text: #14161f;
+  --text-muted: #666c82;
+  --accent: #5750e0;
+  --accent-hover: #6c63ff;
+  --accent-2: #c9790f;
+  --success: #0f9d6e;
+  --danger: #dc4949;
+  --shadow: 0 8px 24px rgba(20, 22, 31, 0.08);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --bg: #fafafc;
+    --surface: #ffffff;
+    --surface-2: #f1f2f6;
+    --surface-3: #e8e9f0;
+    --border: #e0e2eb;
+    --text: #14161f;
+    --text-muted: #666c82;
+    --accent: #5750e0;
+    --accent-hover: #6c63ff;
+    --accent-2: #c9790f;
+    --success: #0f9d6e;
+    --danger: #dc4949;
+    --shadow: 0 8px 24px rgba(20, 22, 31, 0.08);
+  }
 }
 
 * {
   box-sizing: border-box;
 }
 
+html {
+  color-scheme: light dark;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
-  background: #0b0d12;
-  color: #e6e8eb;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
+
+h1, h2, h3, h4 {
+  font-family: "Space Grotesk", "IBM Plex Sans", system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0 0 12px 0;
+}
+
+code, pre, .mono {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+a {
+  color: var(--accent);
+}
+
+/* --- App shell --- */
 
 .app-shell {
   display: flex;
@@ -20,45 +101,236 @@ body {
 }
 
 .sidebar {
-  width: 220px;
-  padding: 24px 16px;
-  border-right: 1px solid #1f232b;
+  width: 232px;
+  padding: 20px 14px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
 }
 
 .sidebar h1 {
   font-size: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
+  padding: 0 10px;
 }
 
 .sidebar nav {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 2px;
 }
 
 .sidebar a {
-  color: #a9b0bb;
+  color: var(--text-muted);
   text-decoration: none;
   padding: 8px 10px;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border-left: 2px solid transparent;
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 
 .sidebar a:hover {
-  background: #171a20;
-  color: #fff;
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.sidebar a.active {
+  background: var(--surface-2);
+  color: var(--text);
+  border-left-color: var(--accent);
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .main-content {
   flex: 1;
   padding: 32px;
-  max-width: 900px;
+  max-width: 960px;
 }
 
+/* --- Shared components --- */
+
 .card {
-  background: #12151b;
-  border: 1px solid #1f232b;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 20px;
-  margin-bottom: 16px;
+  padding: 18px;
+  margin-bottom: 14px;
+  transition: border-color 0.12s ease, transform 0.12s ease;
+}
+
+.card:hover {
+  border-color: var(--surface-3);
+}
+
+button {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 12px;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease, transform 0.08s ease;
+}
+
+button:hover:not(:disabled) {
+  background: var(--surface-3);
+  border-color: var(--accent);
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+input, select, textarea {
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 10px;
+  transition: border-color 0.12s ease;
+}
+
+input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* --- Kanban stage accent colors: encodes real pipeline state --- */
+
+.stage-saved { border-left: 3px solid var(--text-muted); }
+.stage-applied { border-left: 3px solid var(--accent); }
+.stage-phone_screen { border-left: 3px solid var(--accent-2); }
+.stage-interviewing { border-left: 3px solid var(--accent-2); }
+.stage-offer { border-left: 3px solid var(--success); }
+.stage-rejected { border-left: 3px solid var(--danger); opacity: 0.75; }
+.stage-withdrawn { border-left: 3px solid var(--danger); opacity: 0.75; }
+
+/* --- Keyboard shortcut badges (recurring motif) --- */
+
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+/* --- Command palette --- */
+
+.command-palette-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  z-index: 1000;
+  animation: fade-in 0.12s ease;
+}
+
+.command-palette {
+  width: 100%;
+  max-width: 560px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  animation: palette-in 0.14s ease;
+}
+
+.command-palette input {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  padding: 14px 16px;
+  font-size: 15px;
+  background: transparent;
+}
+
+.command-palette input:focus {
+  outline: none;
+}
+
+.command-palette-results {
+  max-height: 340px;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.command-palette-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.command-palette-item.selected {
+  background: var(--accent);
+  color: white;
+}
+
+.command-palette-item.selected .command-palette-hint {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.command-palette-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes palette-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
 }
