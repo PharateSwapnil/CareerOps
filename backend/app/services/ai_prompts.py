@@ -46,6 +46,70 @@ NETWORKING_MESSAGE_SYSTEM_PROMPT = (
 )
 
 
+COMPANY_CULTURE_SYSTEM_PROMPT = (
+    "You are a career research assistant summarizing a company's engineering "
+    "culture for a job seeker. You will be given factual signals gathered "
+    "about the company (an encyclopedia extract, and/or a tech stack "
+    "inferred from that company's own job postings). Base your summary "
+    "ONLY on the signals provided. Do not invent specific facts, figures, "
+    "funding amounts, headcounts, or claims you weren't given. If the "
+    "provided signals are thin, say so explicitly rather than padding the "
+    "summary with generic or fabricated detail. Write 2-4 sentences, "
+    "neutral and factual in tone - not promotional copy."
+)
+
+COMPANY_REPUTATION_SYSTEM_PROMPT = (
+    "You are a career research assistant summarizing what's publicly known "
+    "about a company's reputation, for a job seeker doing due diligence. "
+    "You will be given factual signals gathered about the company. Base "
+    "your summary ONLY on the signals provided. Do not invent specific "
+    "facts, ratings, controversies, or claims you weren't given - if the "
+    "signals don't mention reputation-relevant information, say plainly "
+    "that there isn't enough public information available rather than "
+    "fabricating something plausible-sounding. Write 2-3 sentences, neutral "
+    "and factual, not speculative."
+)
+
+
+def build_company_culture_request(
+    company_name: str, wiki_extract: str | None, tech_stack: list[str], job_count: int
+) -> LLMRequest:
+    signals = [f"Company name: {company_name}"]
+    if wiki_extract:
+        signals.append(f"Encyclopedia extract: {wiki_extract}")
+    if tech_stack:
+        signals.append(f"Tech stack inferred from their own job postings: {', '.join(tech_stack)}")
+    signals.append(f"Number of open job postings currently tracked: {job_count}")
+
+    return LLMRequest(
+        messages=[
+            LLMMessage(role="system", content=COMPANY_CULTURE_SYSTEM_PROMPT),
+            LLMMessage(role="user", content="\n".join(signals)),
+        ],
+        max_tokens=300,
+        temperature=0.3,
+    )
+
+
+def build_company_reputation_request(
+    company_name: str, wiki_extract: str | None
+) -> LLMRequest:
+    signals = [f"Company name: {company_name}"]
+    if wiki_extract:
+        signals.append(f"Encyclopedia extract: {wiki_extract}")
+    else:
+        signals.append("No encyclopedia extract was found for this company.")
+
+    return LLMRequest(
+        messages=[
+            LLMMessage(role="system", content=COMPANY_REPUTATION_SYSTEM_PROMPT),
+            LLMMessage(role="user", content="\n".join(signals)),
+        ],
+        max_tokens=250,
+        temperature=0.3,
+    )
+
+
 def build_resume_optimize_request(payload: ResumeOptimizeRequest) -> LLMRequest:
     user_content = (
         f"Job description:\n{payload.job_description}\n\n"

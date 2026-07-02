@@ -3,7 +3,7 @@
 Milestones are designed to be independently shippable. Check items off as they land
 and add a dated note + commit hash when a milestone completes.
 
-## Milestone 1 — Scaffold, core data model, local-first storage ✅ (this commit)
+## Milestone 1 — Scaffold, core data model, local-first storage ✅
 - [x] Monorepo structure (backend + frontend)
 - [x] FastAPI app skeleton with health check
 - [x] SQLModel entities: User, Company, Job, Resume, Application, Contact, Interaction
@@ -286,9 +286,60 @@ Notes:
   follow-up windowing and sort order, networking-message endpoint),
   74/74 total passing. Frontend typechecks clean.
 
-## Milestone 7 — Company intelligence
-- [ ] Public data aggregation for companies
-- [ ] AI-generated company summaries
+## Milestone 7 — Company intelligence ✅
+- [x] Public data aggregation for companies
+- [x] AI-generated company summaries
+
+Notes:
+- Two real sources of "public data aggregation," both honestly scoped:
+  - **Wikipedia** (`providers/company_data_providers/wikipedia_provider.py`):
+    a direct title lookup against Wikipedia's public REST summary API, no
+    key. Deliberately does NOT do a disambiguation/search step - a
+    best-guess title match could attach the wrong company's facts to a job
+    posting (e.g. matching the wrong "Square"), which is worse than
+    returning nothing. Companies whose Wikipedia article title doesn't
+    match their job-posting name exactly come back `found=False` rather
+    than a wrong result. A real search-based lookup would improve hit rate
+    and is a natural follow-up, not built here.
+  - **Job-posting-derived tech stack** (`services/company_intelligence.py`):
+    scans a company's own already-ingested job descriptions against a
+    curated keyword list. Purely local, no network call, always available -
+    arguably the most directly relevant signal available, since it's the
+    company's own hiring language rather than a third party's guess.
+- **Explicitly did NOT implement AI-generated `salary_insights`.** Doing so
+  via an LLM with no real salary data source behind it would mean
+  fabricating compensation figures - exactly the kind of hallucination that
+  could mislead someone's real financial decisions. That field stays null
+  until a real salary data source (Levels.fyi, Glassdoor-style aggregation,
+  etc.) is integrated; the frontend says so explicitly rather than hiding
+  the gap.
+- `culture_summary` and `reputation_summary` ARE AI-generated
+  (`POST /companies/{id}/enrich`, same LLM-orchestrator pattern as
+  Milestones 3/6), but both system prompts explicitly instruct the model to
+  base output only on the signals it's given and to say so plainly when
+  those signals are thin, rather than padding with generic or invented
+  detail.
+- Jobs now auto-link to a `Company` record on ingestion
+  (`get_or_create_company`, case-insensitive name dedupe) -
+  `Job.company_id` had existed unused since Milestone 1's scaffold; this is
+  what finally populates it.
+- A company-data-provider failure (network error, bad response) degrades to
+  "no public data found" rather than 500ing the enrichment endpoint -
+  verified this actually works end-to-end in this dev sandbox, where
+  `en.wikipedia.org` isn't in the network egress allowlist, so every
+  enrichment test run here genuinely exercises the failure path, not just a
+  mocked one.
+- New endpoints: `GET /companies`, `GET /companies/{id}`,
+  `GET /companies/{id}/jobs`, `GET /companies/data-providers`,
+  `POST /companies/{id}/enrich`.
+- Frontend: new Companies page - list (auto-populated from job ingestion),
+  detail view with an "Enrich" button, tech stack / culture / reputation
+  display, open roles at that company, and an explicit note on why salary
+  insights aren't shown.
+- Tests: 14 new (Wikipedia provider found/404/disambiguation cases, company
+  dedupe, tech-stack inference, enrichment's salary-insights guard,
+  enrichment's graceful degradation when public data isn't found, full API
+  flows), 88/88 total passing. Frontend typechecks clean.
 
 ## Milestone 8 — Browser-assisted applications
 - [ ] Playwright integration for autofill on supported ATS platforms

@@ -14,6 +14,7 @@ from app.models.job import Job
 from app.providers.embedding_providers.registry import get_provider as get_embedding_provider
 from app.providers.job_providers.base import JobProvider
 from app.schemas.job import JobSearchQuery
+from app.services.company_intelligence import get_or_create_company
 from app.services.embeddings import embed_and_store_job
 
 logger = logging.getLogger(__name__)
@@ -44,6 +45,19 @@ async def ingest_jobs(
         session.commit()
         session.refresh(job)
         saved.append(job)
+
+        # Link to a Company record (get-or-create by name) so Company
+        # Intelligence (Milestone 7) has something to attach to and enrich.
+        # A failure here shouldn't break ingestion - logged and swallowed,
+        # same pattern as the auto-embed step below.
+        try:
+            company = get_or_create_company(session, job.company_name)
+            job.company_id = company.id
+            session.add(job)
+            session.commit()
+            session.refresh(job)
+        except Exception:
+            logger.exception("Company linking failed for job %s, continuing", job.id)
 
         # Auto-embed newly created jobs so semantic search works
         # immediately without a separate manual step. Uses the default
