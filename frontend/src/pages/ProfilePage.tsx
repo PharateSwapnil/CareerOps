@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "../lib/api";
 
 interface Profile {
@@ -8,26 +8,35 @@ interface Profile {
   phone: string | null;
   linkedin_url: string | null;
   portfolio_url: string | null;
+  base_resume_text: string | null;
 }
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadMsg, setUploadMsg] = useState("");
+  const [skills, setSkills] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
     const res = await apiFetch("/api/v1/me");
-    setProfile(await res.json());
+    const data = await res.json();
+    setProfile(data);
+
+    const skillsRes = await apiFetch("/api/v1/me/skills");
+    if (skillsRes.ok) {
+      const s = await skillsRes.json();
+      setSkills(s.skills || []);
+    }
   };
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, []);
 
   const save = async () => {
     if (!profile) return;
-    setSaving(true);
-    setSaved(false);
+    setSaving(true); setSaved(false);
     try {
       const res = await apiFetch("/api/v1/me", {
         method: "PATCH",
@@ -35,20 +44,47 @@ export default function ProfilePage() {
         body: JSON.stringify(profile),
       });
       if (res.ok) setSaved(true);
+    } finally { setSaving(false); }
+  };
+
+  const uploadResume = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
+      setUploadMsg("Only PDF files are accepted.");
+      return;
+    }
+    setUploading(true);
+    setUploadMsg("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await apiFetch("/api/v1/me/upload-resume", { method: "POST", body: form });
+      if (res.ok) {
+        const data = await res.json();
+        setProfile(data);
+        const skillsRes = await apiFetch("/api/v1/me/skills");
+        if (skillsRes.ok) setSkills((await skillsRes.json()).skills || []);
+        setUploadMsg(`Resume uploaded. ${skills.length || "Skills"} extracted.`);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setUploadMsg(err.detail || "Upload failed.");
+      }
     } finally {
-      setSaving(false);
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-  if (!profile) return <div>Loading...</div>;
+  if (!profile) return <div style={{ color: "var(--text-muted)", padding: 32 }}>Loading…</div>;
 
   const field = (key: keyof Profile, label: string, placeholder = "") => (
-    <div style={{ marginBottom: 10 }}>
-      <label style={{ display: "block", fontSize: 12, opacity: 0.7, marginBottom: 4 }}>
+    <div style={{ marginBottom: 12 }}>
+      <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>
         {label}
       </label>
       <input
-        value={profile[key] ?? ""}
+        value={(profile[key] as string) ?? ""}
         placeholder={placeholder}
         onChange={(e) => setProfile({ ...profile, [key]: e.target.value })}
         style={{ width: "100%" }}
@@ -58,22 +94,89 @@ export default function ProfilePage() {
 
   return (
     <div>
-      <h2>Profile</h2>
-      <div className="card">
-        <p style={{ fontSize: 13, opacity: 0.8 }}>
-          This information is used to autofill browser-assisted job
-          applications (see the Dashboard) — nothing here is shared or sent
-          anywhere except into forms you're actively applying to yourself.
-        </p>
-        {field("full_name", "Full name")}
-        {field("email", "Email")}
-        {field("headline", "Headline", "e.g. Senior Backend Engineer")}
-        {field("phone", "Phone")}
-        {field("linkedin_url", "LinkedIn URL", "https://linkedin.com/in/...")}
-        {field("portfolio_url", "Portfolio / website URL")}
-        <button onClick={save} disabled={saving}>
-          {saving ? "Saving..." : saved ? "Saved" : "Save"}
-        </button>
+      <div className="page-header"><h2>Profile</h2></div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div>
+          <div className="card">
+            <h3 style={{ marginTop: 0 }}>Contact info</h3>
+            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 16px 0" }}>
+              Used to autofill browser-assisted job applications.
+            </p>
+            {field("full_name", "Full name")}
+            {field("email", "Email")}
+            {field("headline", "Headline", "e.g. Senior Data Engineer")}
+            {field("phone", "Phone")}
+            {field("linkedin_url", "LinkedIn URL", "https://linkedin.com/in/...")}
+            {field("portfolio_url", "Portfolio / website")}
+            <button className="primary" onClick={save} disabled={saving}>
+              {saving ? "Saving…" : saved ? "✓ Saved" : "Save changes"}
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <div className="card">
+            <h3 style={{ marginTop: 0 }}>Base resume</h3>
+            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 16px 0" }}>
+              Upload your resume PDF. CareerOps++ will extract your skills and use them
+              to filter and rank jobs — no third-party service, processed locally.
+            </p>
+
+            {profile.base_resume_text ? (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                  <span className="badge badge-success">
+                    <i className="ti ti-check" /> Resume uploaded
+                  </span>
+                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                    {profile.base_resume_text.length.toLocaleString()} characters extracted
+                  </span>
+                </div>
+                {skills.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>
+                      {skills.length} skills detected
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {skills.map((s) => (
+                        <span key={s} className="badge badge-muted">{s}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="empty-state" style={{ padding: "20px 16px", marginBottom: 16 }}>
+                <div className="empty-icon">📄</div>
+                <h3>No resume uploaded yet</h3>
+                <p>Upload your PDF to enable skill-based job matching.</p>
+              </div>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf"
+              style={{ display: "none" }}
+              onChange={uploadResume}
+            />
+            <button
+              className="primary"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              style={{ width: "100%" }}
+            >
+              <i className="ti ti-upload" aria-hidden="true" />
+              {" "}{uploading ? "Extracting…" : profile.base_resume_text ? "Replace resume PDF" : "Upload resume PDF"}
+            </button>
+            {uploadMsg && (
+              <div style={{ fontSize: 12, color: uploadMsg.includes("failed") || uploadMsg.includes("Only") ? "var(--danger)" : "var(--success)", marginTop: 8 }}>
+                {uploadMsg}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

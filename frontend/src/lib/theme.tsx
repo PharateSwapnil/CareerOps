@@ -19,6 +19,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
 
   useEffect(() => {
+    // Always set the attribute explicitly so CSS selectors work.
+    // html[data-theme="light"] overrides :root (dark default).
+    // html[data-theme="dark"] keeps :root values (dark default unchanged).
     document.documentElement.setAttribute("data-theme", theme);
     window.localStorage.setItem(STORAGE_KEY, theme);
   }, [theme]);

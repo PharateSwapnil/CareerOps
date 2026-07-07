@@ -33,5 +33,10 @@ class User(SQLModel, table=True):
     linkedin_url: str | None = None
     portfolio_url: str | None = None
 
+    # Uploaded resume - raw text extracted from the user's own PDF.
+    # Used to extract skills for smart job filtering, and as the source
+    # for autofill's resume-upload field when no structured resume exists.
+    base_resume_text: str | None = None
+
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)

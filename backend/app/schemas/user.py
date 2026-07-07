@@ -20,6 +20,7 @@ class UserProfileRead(BaseModel):
     phone: str | None
     linkedin_url: str | None
     portfolio_url: str | None
+    base_resume_text: str | None
     created_at: datetime
     updated_at: datetime
 

@@ -1,7 +1,10 @@
 @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap");
 
-:root,
-[data-theme="dark"] {
+/* Default = dark. html[data-theme="light"] overrides.
+   :root and [data-theme="dark"] are intentionally separate — combining them
+   as `:root, [data-theme="dark"]` caused dark to always win regardless of
+   the toggle, because :root has unconditional specificity. */
+:root {
   --bg:           #0b0d14;
   --surface:      #131620;
   --surface-2:    #1b1f2e;
@@ -28,7 +31,7 @@
   --radius-lg:    12px;
 }
 
-[data-theme="light"] {
+html[data-theme="light"] {
   --bg:           #fafafc;
   --surface:      #ffffff;
   --surface-2:    #f1f2f6;
@@ -56,7 +59,7 @@
 }
 
 @media (prefers-color-scheme: light) {
-  :root:not([data-theme]) {
+  :root:not([data-theme="dark"]) {
     --bg:           #fafafc;
     --surface:      #ffffff;
     --surface-2:    #f1f2f6;
