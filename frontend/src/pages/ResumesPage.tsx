@@ -251,8 +251,10 @@ export default function ResumesPage() {
 
       <h3>Your resumes</h3>
       {resumes.length === 0 && (
-        <div className="card">
-          <p>No resumes yet. Create one above, or generate one with AI Assist on the Applications page.</p>
+        <div className="empty-state">
+          <div className="empty-icon">📄</div>
+          <h3>No resumes yet</h3>
+          <p>Create a plain-text resume or use the designed Swapnil template for a polished PDF.</p>
         </div>
       )}
       {resumes.map((r) => (

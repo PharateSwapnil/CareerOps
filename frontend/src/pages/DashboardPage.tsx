@@ -124,99 +124,163 @@ export default function DashboardPage() {
     });
   };
 
+  const activeApps = applications.filter(
+    (a) => !["rejected", "withdrawn"].includes(a.status)
+  ).length;
+  const inInterviews = applications.filter(
+    (a) => ["phone_screen", "interviewing"].includes(a.status)
+  ).length;
+  const offers = applications.filter((a) => a.status === "offer").length;
+  const thisWeek = applications.filter((a) => {
+    if (!a.applied_at) return false;
+    const diff = Date.now() - new Date(a.applied_at).getTime();
+    return diff < 7 * 24 * 60 * 60 * 1000;
+  }).length;
+
   return (
     <div>
-      <h2>Dashboard</h2>
+      <div className="page-header">
+        <h2>Dashboard</h2>
+      </div>
+
+      <div className="stats-bar">
+        <div className="stat-card accent">
+          <div className="stat-value">{applications.length}</div>
+          <div className="stat-label">Total applications</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value">{activeApps}</div>
+          <div className="stat-label">Active</div>
+        </div>
+        <div className="stat-card warning">
+          <div className="stat-value">{inInterviews}</div>
+          <div className="stat-label">Interviewing</div>
+        </div>
+        <div className="stat-card success">
+          <div className="stat-value">{offers}</div>
+          <div className="stat-label">Offers</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value">{thisWeek}</div>
+          <div className="stat-label">This week</div>
+        </div>
+      </div>
+
       {applications.length === 0 && !loading && (
-        <div className="card">
-          <p>
-            No applications yet. Fetch some jobs from the Jobs page, then
-            create an application via <code>POST /api/v1/applications</code>{" "}
-            (dedicated "add to pipeline" UI on the Jobs page is a
-            fast-follow) to start tracking it here.
-          </p>
+        <div className="empty-state">
+          <div className="empty-icon">📋</div>
+          <h3>Your pipeline is empty</h3>
+          <p>Fetch jobs from the Jobs page, save the ones you like, and start applying — they'll show up here.</p>
+          <a href="/jobs"><button className="primary">Browse jobs →</button></a>
         </div>
       )}
-      <div style={{ display: "flex", gap: 12, overflowX: "auto" }}>
+
+      <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8 }}>
         {STATUS_COLUMNS.map((col) => {
           const colApps = applications.filter((a) => a.status === col.key);
           return (
             <div key={col.key} style={{ minWidth: 220, flex: "0 0 220px" }}>
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, opacity: 0.8 }}>
-                {col.label} ({colApps.length})
+              <div style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: "var(--text-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                marginBottom: 8,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "0 2px",
+              }}>
+                <span>{col.label}</span>
+                {colApps.length > 0 && (
+                  <span style={{
+                    background: "var(--surface-3)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 20,
+                    padding: "1px 7px",
+                    fontSize: 11,
+                    fontFamily: "var(--font-mono, monospace)",
+                  }}>{colApps.length}</span>
+                )}
               </div>
+              {colApps.length === 0 && (
+                <div style={{
+                  border: "1px dashed var(--border)",
+                  borderRadius: "var(--radius-lg)",
+                  padding: "16px 12px",
+                  textAlign: "center",
+                  fontSize: 11,
+                  color: "var(--text-faint)",
+                }}>empty</div>
+              )}
               {colApps.map((app) => {
                 const job = jobs[app.job_id];
                 const next = NEXT_STATUS[app.status];
                 const automation = automationByApp[app.id];
                 return (
-                  <div className={`card stage-${app.status}`} key={app.id} style={{ padding: 12, marginBottom: 8 }}>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>
+                  <div className={`card interactive stage-${app.status}`} key={app.id} style={{ padding: "12px 14px", marginBottom: 8 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13, lineHeight: 1.3, marginBottom: 2 }}>
                       {job?.title ?? `Job #${app.job_id}`}
                     </div>
-                    <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 10 }}>
                       {job?.company_name ?? ""}
                     </div>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                       {next && (
-                        <button style={{ fontSize: 12 }} onClick={() => advance(app)}>
-                          Move to {STATUS_COLUMNS.find((c) => c.key === next)?.label}
+                        <button style={{ fontSize: 11, padding: "4px 8px" }} onClick={() => advance(app)}>
+                          → {STATUS_COLUMNS.find((c) => c.key === next)?.label}
                         </button>
                       )}
                       {col.key !== "rejected" && col.key !== "withdrawn" && (
-                        <button style={{ fontSize: 12 }} onClick={() => reject(app)}>
-                          Reject
-                        </button>
-                      )}
-                      {!automation && (
-                        <button style={{ fontSize: 12 }} onClick={() => startAutomation(app)}>
-                          Auto-fill application
+                        <button className="ghost" style={{ fontSize: 11, padding: "4px 6px", color: "var(--danger)" }} onClick={() => reject(app)}>
+                          <i className="ti ti-x" aria-hidden="true" />
                         </button>
                       )}
                     </div>
+                    {!automation && col.key !== "rejected" && col.key !== "withdrawn" && (
+                      <button
+                        className="ghost"
+                        style={{ fontSize: 11, marginTop: 6, width: "100%", padding: "5px 8px", color: "var(--text-muted)" }}
+                        onClick={() => startAutomation(app)}
+                      >
+                        <i className="ti ti-bolt" aria-hidden="true" /> Auto-fill
+                      </button>
+                    )}
 
                     {automation && (
-                      <div
-                        style={{
-                          marginTop: 8,
-                          fontSize: 11,
-                          padding: 8,
-                          background: "var(--bg)",
-                          borderRadius: 6,
-                        }}
-                      >
-                        <div style={{ fontWeight: 600 }}>
-                          Status: {automation.status.replace(/_/g, " ")}
+                      <div style={{
+                        marginTop: 8,
+                        fontSize: 11,
+                        padding: "8px 10px",
+                        background: "var(--surface-2)",
+                        border: "1px solid var(--border)",
+                        borderRadius: "var(--radius)",
+                      }}>
+                        <div style={{ fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+                          <i className="ti ti-bolt" aria-hidden="true" style={{ color: "var(--accent-2)" }} />
+                          {automation.status.replace(/_/g, " ")}
                         </div>
                         {automation.status === "error" && (
-                          <div style={{ opacity: 0.8, marginTop: 4 }}>
-                            {automation.error_message} — likely means{" "}
-                            <code>playwright install chromium</code> hasn't been run
-                            on this machine yet.
+                          <div style={{ color: "var(--danger)", marginTop: 4, fontSize: 10 }}>
+                            Run <code>playwright install chromium</code>
                           </div>
                         )}
                         {automation.pause_reason && (
-                          <div style={{ opacity: 0.8, marginTop: 4 }}>
-                            Paused: {automation.pause_reason}. Handle it in the browser
-                            window, then click Resume.
-                          </div>
+                          <div style={{ color: "var(--text-muted)", marginTop: 4 }}>{automation.pause_reason}</div>
                         )}
                         {automation.status === "awaiting_submit" && (
-                          <div style={{ opacity: 0.8, marginTop: 4 }}>
-                            Form filled as far as it safely could be. Review it and
-                            click Submit yourself in the browser window —
-                            CareerOps++ never submits on your behalf.
+                          <div style={{ color: "var(--success)", marginTop: 4 }}>
+                            Review in browser → click Submit yourself
                           </div>
                         )}
-                        <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                          {(automation.status === "paused_auth" ||
-                            automation.status === "paused_captcha" ||
-                            automation.status === "paused_unknown_field") && (
-                            <button style={{ fontSize: 11 }} onClick={() => resumeAutomation(app)}>
+                        <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
+                          {["paused_auth","paused_captcha","paused_unknown_field"].includes(automation.status) && (
+                            <button style={{ fontSize: 10, padding: "3px 7px" }} onClick={() => resumeAutomation(app)}>
                               Resume
                             </button>
                           )}
-                          <button style={{ fontSize: 11 }} onClick={() => closeAutomation(app)}>
+                          <button className="ghost" style={{ fontSize: 10, padding: "3px 6px" }} onClick={() => closeAutomation(app)}>
                             Close
                           </button>
                         </div>

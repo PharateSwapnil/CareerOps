@@ -180,7 +180,11 @@ export default function JobsPage() {
 
       {jobs.length === 0 && !searchResults && (
         <div className="card">
-          <p>No jobs yet. Pick a provider above and fetch to get started.</p>
+          <div className="empty-state">
+            <div className="empty-icon">💼</div>
+            <h3>No jobs yet</h3>
+            <p>Pick a provider above and click Fetch to pull in live job listings.</p>
+          </div>
         </div>
       )}
 

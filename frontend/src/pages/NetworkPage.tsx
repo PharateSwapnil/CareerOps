@@ -214,22 +214,14 @@ export default function NetworkPage() {
       <div style={{ display: "flex", gap: 16 }}>
         <div style={{ flex: 1 }}>
           {displayedContacts.length === 0 && (
-            <div className="card">
-              <p>
-                {view === "follow-ups"
-                  ? "No follow-ups due in the next 14 days."
-                  : "No contacts yet — add one above."}
-              </p>
-            </div>
+            view === "follow-ups"
+              ? <div className="empty-state"><div className="empty-icon">✅</div><h3>All caught up</h3><p>No follow-ups due in the next 14 days.</p></div>
+              : <div className="empty-state"><div className="empty-icon">👥</div><h3>No contacts yet</h3><p>Add recruiters, hiring managers and referrals to start building your network.</p></div>
           )}
           {displayedContacts.map((c) => (
             <div
-              className="card"
+              className={`card interactive${selectedId === c.id ? " selected" : ""}`}
               key={c.id}
-              style={{
-                cursor: "pointer",
-                border: selectedId === c.id ? "1px solid var(--accent)" : undefined,
-              }}
               onClick={() => openContact(c)}
             >
               <strong>{c.full_name}</strong>

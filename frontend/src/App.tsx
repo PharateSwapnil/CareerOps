@@ -80,44 +80,58 @@ function AppShell() {
       <aside className="sidebar">
         <h1>CareerOps++</h1>
         <nav>
+          <div className="section-title">Discover</div>
           <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : "")}>
+            <i className="ti ti-layout-kanban nav-icon" aria-hidden="true" />
             Dashboard
           </NavLink>
           <NavLink to="/jobs" className={({ isActive }) => (isActive ? "active" : "")}>
+            <i className="ti ti-briefcase nav-icon" aria-hidden="true" />
             Jobs
           </NavLink>
           <NavLink to="/saved-searches" className={({ isActive }) => (isActive ? "active" : "")}>
-            Saved Searches
+            <i className="ti ti-bookmark nav-icon" aria-hidden="true" />
+            Saved searches
           </NavLink>
           <NavLink to="/companies" className={({ isActive }) => (isActive ? "active" : "")}>
+            <i className="ti ti-building nav-icon" aria-hidden="true" />
             Companies
           </NavLink>
+
+          <div className="section-title" style={{ marginTop: 8 }}>Prepare</div>
           <NavLink to="/applications" className={({ isActive }) => (isActive ? "active" : "")}>
+            <i className="ti ti-send nav-icon" aria-hidden="true" />
             Applications
           </NavLink>
           <NavLink to="/resumes" className={({ isActive }) => (isActive ? "active" : "")}>
+            <i className="ti ti-file-text nav-icon" aria-hidden="true" />
             Resumes
           </NavLink>
           <NavLink to="/network" className={({ isActive }) => (isActive ? "active" : "")}>
+            <i className="ti ti-users nav-icon" aria-hidden="true" />
             Network
           </NavLink>
+
+          <div className="section-title" style={{ marginTop: 8 }}>Account</div>
           <NavLink to="/profile" className={({ isActive }) => (isActive ? "active" : "")}>
+            <i className="ti ti-user-circle nav-icon" aria-hidden="true" />
             Profile
           </NavLink>
         </nav>
-        <div className="sidebar-footer" style={{ flexDirection: "column", alignItems: "stretch", gap: 8 }}>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <button onClick={() => setPaletteOpen(true)} title="Command palette">
+        <div className="sidebar-footer">
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 4 }}>
+            <button className="ghost" onClick={() => setPaletteOpen(true)} title="Command palette (⌘K)" style={{ fontSize: 12 }}>
               <span className="kbd">⌘K</span>
             </button>
-            <button onClick={toggleTheme} title="Toggle theme">
-              {theme === "dark" ? "☀︎ Light" : "☾ Dark"}
+            <button className="ghost" onClick={toggleTheme} title="Toggle theme" style={{ fontSize: 12 }}>
+              <i className={`ti ${theme === "dark" ? "ti-sun" : "ti-moon"}`} aria-hidden="true" />
+              {theme === "dark" ? " Light" : " Dark"}
             </button>
           </div>
-          <div style={{ fontSize: 12, opacity: 0.7, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span>{user?.full_name}</span>
-            <button onClick={handleLogout} style={{ fontSize: 11 }}>
-              Log out
+          <div className="user-row">
+            <span className="user-name">{user?.full_name}</span>
+            <button className="ghost" onClick={handleLogout} style={{ fontSize: 11, padding: "4px 6px" }} title="Log out">
+              <i className="ti ti-logout" aria-hidden="true" />
             </button>
           </div>
         </div>

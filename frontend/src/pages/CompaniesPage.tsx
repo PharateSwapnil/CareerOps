@@ -77,12 +77,11 @@ export default function CompaniesPage() {
     <div>
       <h2>Companies</h2>
       {companies.length === 0 && (
-        <div className="card">
-          <p>
-            No companies yet — companies are created automatically as you
-            fetch jobs (each job's employer becomes a Company record you can
-            enrich with public data and AI summaries).
-          </p>
+        <div className="empty-state">
+          <div className="empty-icon">🏢</div>
+          <h3>No companies yet</h3>
+          <p>Companies are created automatically when you fetch jobs — each employer becomes a record you can enrich with AI summaries.</p>
+          <a href="/jobs"><button className="primary">Fetch jobs →</button></a>
         </div>
       )}
 
@@ -90,12 +89,8 @@ export default function CompaniesPage() {
         <div style={{ flex: 1 }}>
           {companies.map((c) => (
             <div
-              className="card"
+              className={`card interactive${selected?.id === c.id ? " selected" : ""}`}
               key={c.id}
-              style={{
-                cursor: "pointer",
-                border: selected?.id === c.id ? "1px solid var(--accent)" : undefined,
-              }}
               onClick={() => openCompany(c)}
             >
               <strong>{c.name}</strong>
