@@ -18,6 +18,7 @@ export default function ProfilePage() {
   const [uploading, setUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
+  const [newSkill, setNewSkill] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
@@ -74,6 +75,18 @@ export default function ProfilePage() {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
+  };
+
+  const addSkill = () => {
+    const skill = newSkill.trim();
+    if (skill && !skills.includes(skill)) {
+      setSkills([...skills, skill]);
+      setNewSkill("");
+    }
+  };
+
+  const removeSkill = (skill: string) => {
+    setSkills(skills.filter(s => s !== skill));
   };
 
   if (!profile) return <div style={{ color: "var(--text-muted)", padding: 32 }}>Loading…</div>;
@@ -134,17 +147,44 @@ export default function ProfilePage() {
                   </span>
                 </div>
                 {skills.length > 0 && (
-                  <div>
+                  <div style={{ marginBottom: 16 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>
-                      {skills.length} skills detected
+                      Detected skills ({skills.length})
                     </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
                       {skills.map((s) => (
-                        <span key={s} className="badge badge-muted">{s}</span>
+                        <span key={s} className="badge badge-muted" style={{ position: "relative", paddingRight: 20 }}>
+                          {s}
+                          <button
+                            className="ghost"
+                            onClick={() => removeSkill(s)}
+                            style={{ position: "absolute", right: 2, top: "50%", transform: "translateY(-50%)", padding: 0, fontSize: 12, lineHeight: 1 }}
+                            title="Remove skill"
+                          >
+                            ✕
+                          </button>
+                        </span>
                       ))}
                     </div>
                   </div>
                 )}
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+                    Add skills manually
+                  </label>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input
+                      placeholder="e.g. React, Python, AWS"
+                      value={newSkill}
+                      onChange={(e) => setNewSkill(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && addSkill()}
+                      style={{ flex: 1 }}
+                    />
+                    <button onClick={addSkill} style={{ fontSize: 12 }}>
+                      <i className="ti ti-plus" /> Add
+                    </button>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="empty-state" style={{ padding: "20px 16px", marginBottom: 16 }}>

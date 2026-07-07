@@ -10,6 +10,7 @@ interface Job {
   url: string;
   source_provider: string;
   description: string | null;
+  posted_at?: string;
 }
 
 interface ScoredJob {
@@ -19,27 +20,33 @@ interface ScoredJob {
 
 interface ScoredDisplayJob {
   job: Job;
-  titleScore: number;   // 0-100
-  skillScore: number;   // 0-100
-  semanticScore?: number;
+  titleScore: number;
+  skillScore: number;
 }
 
 // ── Matching utilities ──────────────────────────────────────────────────
 
-function titleMatchScore(jobTitle: string, targetTitle: string): number {
-  if (!targetTitle.trim()) return 100;
+function titleMatchScore(jobTitle: string, targetTitles: string[]): number {
+  if (targetTitles.length === 0) return 100;
   const jt = jobTitle.toLowerCase();
-  const tt = targetTitle.toLowerCase();
-
-  // Exact contains
-  if (jt.includes(tt)) return 100;
-
-  // Word overlap
-  const jWords = new Set(jt.split(/\W+/).filter(Boolean));
-  const tWords = tt.split(/\W+/).filter(Boolean);
-  if (tWords.length === 0) return 100;
-  const matches = tWords.filter((w) => jWords.has(w) || jt.includes(w)).length;
-  return Math.round((matches / tWords.length) * 100);
+  
+  for (const targetTitle of targetTitles) {
+    const tt = targetTitle.toLowerCase().trim();
+    if (!tt) continue;
+    
+    // Exact contains
+    if (jt.includes(tt)) return 100;
+    
+    // Word overlap
+    const jWords = new Set(jt.split(/\W+/).filter(Boolean));
+    const tWords = tt.split(/\W+/).filter(Boolean);
+    if (tWords.length === 0) continue;
+    const matches = tWords.filter((w) => jWords.has(w)).length;
+    const score = Math.round((matches / tWords.length) * 100);
+    if (score > 50) return score;
+  }
+  
+  return 0;
 }
 
 function skillMatchScore(job: Job, userSkills: string[]): number {
@@ -47,6 +54,13 @@ function skillMatchScore(job: Job, userSkills: string[]): number {
   const text = `${job.title} ${job.description || ""}`.toLowerCase();
   const matched = userSkills.filter((s) => text.includes(s.toLowerCase())).length;
   return Math.round((matched / userSkills.length) * 100);
+}
+
+function isRecentJob(postedAt: string | undefined, daysAgo: number): boolean {
+  if (!postedAt) return true;
+  const posted = new Date(postedAt).getTime();
+  const cutoff = Date.now() - daysAgo * 24 * 60 * 60 * 1000;
+  return posted >= cutoff;
 }
 
 // ── Component ────────────────────────────────────────────────────────────
@@ -63,9 +77,10 @@ export default function JobsPage() {
   const [hasResume, setHasResume] = useState(false);
 
   // Smart filter state
-  const [targetTitle, setTargetTitle] = useState("");
-  const [titleThreshold, setTitleThreshold] = useState(50);
-  const [skillThreshold, setSkillThreshold] = useState(30);
+  const [targetTitles, setTargetTitles] = useState<string[]>([]);
+  const [titleInput, setTitleInput] = useState("");
+  const [selectedProviders, setSelectedProviders] = useState<Set<string>>(new Set()); // For filtering results
+  const [daysFilter, setDaysFilter] = useState(2); // Default: last 2 days
   const [filterMode, setFilterMode] = useState<"all" | "smart">("all");
 
   // Semantic search
@@ -74,6 +89,9 @@ export default function JobsPage() {
   const [searching, setSearching] = useState(false);
 
   const crawlAbortRef = useRef(false);
+
+  const TITLE_THRESHOLD = 75;
+  const SKILL_THRESHOLD = 60;
 
   const loadJobs = async () => {
     const res = await apiFetch("/api/v1/jobs");
@@ -105,24 +123,29 @@ export default function JobsPage() {
   const fetchFromProvider = async () => {
     setLoading(true);
     try {
+      const keywords = targetTitles.length > 0 ? targetTitles : ["Engineer"];
       await apiFetch(`/api/v1/jobs/fetch?provider_name=${provider}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keywords: [targetTitle || "Engineer"], limit: 25 }),
+        body: JSON.stringify({ keywords, limit: 25 }),
       });
       await loadJobs();
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const crawlAll = async () => {
     const realProviders = providers.filter((p) => p !== "stub");
     if (realProviders.length === 0) {
-      setCrawlProgress("No real providers available (only stub).");
+      setCrawlProgress("No real providers available.");
       return;
     }
     setCrawling(true);
     crawlAbortRef.current = false;
     let done = 0;
+    const keywords = targetTitles.length > 0 ? targetTitles : ["Engineer"];
+    
     for (const p of realProviders) {
       if (crawlAbortRef.current) break;
       setCrawlProgress(`Fetching from ${p}… (${done + 1}/${realProviders.length})`);
@@ -130,7 +153,7 @@ export default function JobsPage() {
         await apiFetch(`/api/v1/jobs/fetch?provider_name=${p}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ keywords: [targetTitle || "Engineer"], limit: 25 }),
+          body: JSON.stringify({ keywords, limit: 25 }),
         });
       } catch {}
       done++;
@@ -140,7 +163,31 @@ export default function JobsPage() {
     setCrawling(false);
   };
 
-  const stopCrawl = () => { crawlAbortRef.current = true; };
+  const stopCrawl = () => {
+    crawlAbortRef.current = true;
+  };
+
+  const addTitleToFilter = () => {
+    const title = titleInput.trim();
+    if (title && !targetTitles.includes(title)) {
+      setTargetTitles([...targetTitles, title]);
+      setTitleInput("");
+    }
+  };
+
+  const removeTitleFilter = (title: string) => {
+    setTargetTitles(targetTitles.filter(t => t !== title));
+  };
+
+  const toggleProviderFilter = (p: string) => {
+    const newSet = new Set(selectedProviders);
+    if (newSet.has(p)) {
+      newSet.delete(p);
+    } else {
+      newSet.add(p);
+    }
+    setSelectedProviders(newSet);
+  };
 
   const addToPipeline = async (jobId: number) => {
     const res = await apiFetch("/api/v1/applications", {
@@ -161,22 +208,38 @@ export default function JobsPage() {
         body: JSON.stringify({ query: searchQuery, limit: 30 }),
       });
       setSearchResults(await res.json());
-    } finally { setSearching(false); }
+    } finally {
+      setSearching(false);
+    }
   };
 
-  // ── Compute scored+filtered jobs ─────────────────────────────────────
+  // ── Compute filtered jobs ─────────────────────────────────────────────
 
-  const scoredJobs: ScoredDisplayJob[] = allJobs.map((job) => ({
+  let filteredJobs = allJobs;
+
+  // Filter by date (last N days)
+  filteredJobs = filteredJobs.filter(j => isRecentJob(j.posted_at, daysFilter));
+
+  // Filter by selected providers
+  if (selectedProviders.size > 0) {
+    filteredJobs = filteredJobs.filter(j => selectedProviders.has(j.source_provider));
+  }
+
+  const scoredJobs: ScoredDisplayJob[] = filteredJobs.map((job) => ({
     job,
-    titleScore: titleMatchScore(job.title, targetTitle),
+    titleScore: titleMatchScore(job.title, targetTitles),
     skillScore: skillMatchScore(job, userSkills),
   }));
 
   const displayJobs: ScoredDisplayJob[] = filterMode === "smart"
-    ? scoredJobs.filter((j) =>
-        j.titleScore >= titleThreshold && j.skillScore >= skillThreshold
-      ).sort((a, b) => (b.titleScore + b.skillScore) - (a.titleScore + a.skillScore))
+    ? scoredJobs
+        .filter((j) => j.titleScore >= TITLE_THRESHOLD && j.skillScore >= SKILL_THRESHOLD)
+        .sort((a, b) => (b.titleScore + b.skillScore) - (a.titleScore + a.skillScore))
     : scoredJobs;
+
+  const smartFilterCount = scoredJobs.filter(
+    j => j.titleScore >= TITLE_THRESHOLD && j.skillScore >= SKILL_THRESHOLD
+  ).length;
 
   const scoreColor = (pct: number) =>
     pct >= 70 ? "var(--success)" : pct >= 40 ? "var(--warning)" : "var(--text-faint)";
@@ -209,11 +272,14 @@ export default function JobsPage() {
               </div>
             )}
             <div style={{ display: "flex", gap: 6 }}>
-              <a href={job.url} target="_blank" rel="noreferrer">
-                <button className="ghost" style={{ fontSize: 11, padding: "4px 8px" }}>
-                  <i className="ti ti-external-link" aria-hidden="true" /> View
-                </button>
-              </a>
+              <button 
+                className="ghost" 
+                style={{ fontSize: 11, padding: "4px 8px" }}
+                onClick={() => job.url && window.open(job.url, "_blank")}
+                disabled={!job.url}
+              >
+                <i className="ti ti-external-link" aria-hidden="true" /> View
+              </button>
               <button
                 className={added ? "ghost" : "primary"}
                 style={{ fontSize: 11, padding: "4px 10px" }}
@@ -236,7 +302,7 @@ export default function JobsPage() {
   const sourceList = searchResults
     ? searchResults.map((r) => ({
         job: r.job,
-        titleScore: titleMatchScore(r.job.title, targetTitle),
+        titleScore: titleMatchScore(r.job.title, targetTitles),
         skillScore: skillMatchScore(r.job, userSkills),
       }))
     : displayJobs;
@@ -244,6 +310,48 @@ export default function JobsPage() {
   return (
     <div>
       <div className="page-header"><h2>Jobs</h2></div>
+
+      {/* ── Smart Filter Controls (Before Fetch) ── */}
+      <div className="card">
+        <h3 style={{ marginTop: 0 }}>Smart job search</h3>
+        <div>
+          <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+            Target job titles (add multiple)
+          </label>
+          <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+            <input
+              placeholder="e.g. Senior Engineer, Data Scientist"
+              value={titleInput}
+              onChange={(e) => setTitleInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addTitleToFilter()}
+              style={{ flex: 1 }}
+            />
+            <button onClick={addTitleToFilter} style={{ fontSize: 12 }}>
+              <i className="ti ti-plus" /> Add
+            </button>
+          </div>
+          {targetTitles.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+              {targetTitles.map((t) => (
+                <span key={t} className="badge badge-accent" style={{ position: "relative", paddingRight: 20 }}>
+                  {t}
+                  <button
+                    className="ghost"
+                    onClick={() => removeTitleFilter(t)}
+                    style={{ position: "absolute", right: 2, top: "50%", transform: "translateY(-50%)", padding: 0, fontSize: 12, lineHeight: 1 }}
+                    title="Remove title"
+                  >
+                    ✕
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div style={{ fontSize: 11, color: "var(--text-faint)" }}>
+            Thresholds: Title ≥ 75%, Skills ≥ 60% (auto-applied when filtering)
+          </div>
+        </div>
+      </div>
 
       {/* ── Fetch controls ── */}
       <div className="card">
@@ -253,9 +361,9 @@ export default function JobsPage() {
             {providers.map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
           <input
-            placeholder="Job title / keywords"
-            value={targetTitle}
-            onChange={(e) => setTargetTitle(e.target.value)}
+            placeholder="Job title / keywords (or use targets above)"
+            value={titleInput}
+            onChange={(e) => setTitleInput(e.target.value)}
             style={{ flex: 1, minWidth: 160 }}
           />
           <button className="primary" onClick={fetchFromProvider} disabled={loading}>
@@ -278,61 +386,52 @@ export default function JobsPage() {
         )}
       </div>
 
-      {/* ── Smart filter ── */}
+      {/* ── Filter Results ── */}
       <div className="card">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <h3 style={{ margin: 0 }}>Smart filter</h3>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              className={filterMode === "all" ? "primary" : "ghost"}
-              style={{ fontSize: 12 }}
-              onClick={() => setFilterMode("all")}
-            >Show all ({allJobs.length})</button>
-            <button
-              className={filterMode === "smart" ? "primary" : "ghost"}
-              style={{ fontSize: 12 }}
-              onClick={() => setFilterMode("smart")}
-            >
-              <i className="ti ti-filter" aria-hidden="true" /> Smart filter ({scoredJobs.filter(j => j.titleScore >= titleThreshold && j.skillScore >= skillThreshold).length})
-            </button>
-          </div>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <h3 style={{ marginTop: 0 }}>Filter results</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 12 }}>
           <div>
             <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
-              Title match ≥ <span style={{ color: "var(--accent)" }}>{titleThreshold}%</span>
+              Posted within last: <span style={{ color: "var(--accent)" }}>{daysFilter} days</span>
             </label>
             <input
-              type="range" min={10} max={100} step={5}
-              value={titleThreshold}
-              onChange={(e) => setTitleThreshold(Number(e.target.value))}
+              type="range" min={1} max={30} step={1}
+              value={daysFilter}
+              onChange={(e) => setDaysFilter(Number(e.target.value))}
               style={{ width: "100%" }}
             />
-            <div style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 4 }}>
-              Matches "{targetTitle || "Engineer"}" against job titles
+          </div>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+              Job portals ({selectedProviders.size > 0 ? selectedProviders.size : "all"} selected)
+            </label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {providers.filter(p => p !== "stub").map((p) => (
+                <button
+                  key={p}
+                  className={selectedProviders.has(p) ? "primary" : "ghost"}
+                  style={{ fontSize: 11, padding: "4px 8px" }}
+                  onClick={() => toggleProviderFilter(p)}
+                >
+                  {p}
+                </button>
+              ))}
             </div>
           </div>
-          <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
-              Skills match ≥ <span style={{ color: "var(--accent)" }}>{skillThreshold}%</span>
-            </label>
-            <input
-              type="range" min={0} max={100} step={5}
-              value={skillThreshold}
-              onChange={(e) => setSkillThreshold(Number(e.target.value))}
-              style={{ width: "100%" }}
-            />
-            {!hasResume ? (
-              <div style={{ fontSize: 11, color: "var(--warning)", marginTop: 4 }}>
-                <i className="ti ti-alert-triangle" aria-hidden="true" /> Upload your resume on the Profile page to enable skill matching
-              </div>
-            ) : (
-              <div style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 4 }}>
-                Matches {userSkills.length} skills from your resume
-              </div>
-            )}
-          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            className={filterMode === "all" ? "primary" : "ghost"}
+            style={{ fontSize: 12 }}
+            onClick={() => setFilterMode("all")}
+          >Show all ({filteredJobs.length})</button>
+          <button
+            className={filterMode === "smart" ? "primary" : "ghost"}
+            style={{ fontSize: 12 }}
+            onClick={() => setFilterMode("smart")}
+          >
+            <i className="ti ti-filter" aria-hidden="true" /> Smart filter ({smartFilterCount})
+          </button>
         </div>
       </div>
 
@@ -362,11 +461,11 @@ export default function JobsPage() {
       {sourceList.length === 0 && !loading && (
         <div className="empty-state">
           <div className="empty-icon">💼</div>
-          <h3>{allJobs.length === 0 ? "No jobs fetched yet" : "No jobs match your current filters"}</h3>
+          <h3>{filteredJobs.length === 0 ? "No jobs found" : "No jobs match your filters"}</h3>
           <p>
-            {allJobs.length === 0
-              ? "Pick a provider above and click Fetch to pull in live listings."
-              : `Try lowering the title threshold (currently ${titleThreshold}%) or skills threshold (${skillThreshold}%).`}
+            {filteredJobs.length === 0
+              ? "Fetch jobs from providers above using your target titles."
+              : `Try adjusting date range (currently ${daysFilter} days), adding more providers, or lowering match thresholds.`}
           </p>
         </div>
       )}

@@ -179,7 +179,35 @@ export default function DashboardPage() {
         {STATUS_COLUMNS.map((col) => {
           const colApps = applications.filter((a) => a.status === col.key);
           return (
-            <div key={col.key} style={{ minWidth: 220, flex: "0 0 220px" }}>
+            <div 
+              key={col.key} 
+              style={{ minWidth: 220, flex: "0 0 220px" }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.currentTarget.style.background = "rgba(var(--accent-rgb), 0.05)";
+                e.currentTarget.style.borderRadius = "8px";
+              }}
+              onDragLeave={(e) => {
+                e.currentTarget.style.background = "";
+              }}
+              onDrop={async (e) => {
+                e.preventDefault();
+                e.currentTarget.style.background = "";
+                try {
+                  const data = JSON.parse(e.dataTransfer.getData("application"));
+                  if (data.current_status !== col.key) {
+                    const res = await apiFetch(`/api/v1/applications/${data.id}/status`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ status: col.key }),
+                    });
+                    if (res.ok) load();
+                  }
+                } catch (err) {
+                  console.error("Drop failed:", err);
+                }
+              }}
+            >
               <div style={{
                 fontSize: 11,
                 fontWeight: 600,
@@ -212,6 +240,10 @@ export default function DashboardPage() {
                   textAlign: "center",
                   fontSize: 11,
                   color: "var(--text-faint)",
+                  minHeight: "60px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}>empty</div>
               )}
               {colApps.map((app) => {
@@ -219,7 +251,25 @@ export default function DashboardPage() {
                 const next = NEXT_STATUS[app.status];
                 const automation = automationByApp[app.id];
                 return (
-                  <div className={`card interactive stage-${app.status}`} key={app.id} style={{ padding: "12px 14px", marginBottom: 8 }}>
+                  <div 
+                    className={`card interactive stage-${app.status}`} 
+                    key={app.id} 
+                    style={{ 
+                      padding: "12px 14px", 
+                      marginBottom: 8,
+                      cursor: "grab",
+                      transition: "all 0.2s ease"
+                    }}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.effectAllowed = "move";
+                      e.dataTransfer.setData("application", JSON.stringify({ id: app.id, current_status: app.status }));
+                      e.currentTarget.style.opacity = "0.5";
+                    }}
+                    onDragEnd={(e) => {
+                      e.currentTarget.style.opacity = "1";
+                    }}
+                  >
                     <div style={{ fontWeight: 600, fontSize: 13, lineHeight: 1.3, marginBottom: 2 }}>
                       {job?.title ?? `Job #${app.job_id}`}
                     </div>
